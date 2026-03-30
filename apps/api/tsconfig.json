@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@sqlcat/types": ["../../packages/types/src"],
+      "@sqlcat/types/*": ["../../packages/types/src/*"]
+    }
+  },
+  "include": ["src"]
+}
