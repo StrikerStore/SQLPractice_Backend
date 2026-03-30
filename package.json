@@ -1,0 +1,27 @@
+{
+  "name": "sql-cat-trainer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@10.5.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "db"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w @sqlcat/web",
+    "dev:api": "npm run dev -w @sqlcat/api",
+    "build": "npm run build:types && npm run build:api && npm run build:web",
+    "lint": "npm run lint -w @sqlcat/web && npm run lint -w @sqlcat/api",
+    "test": "npm run test -w @sqlcat/api",
+    "db:seed": "npm run seed -w @sqlcat/db",
+    "build:types": "npm run build -w @sqlcat/types",
+    "build:api": "npm run build -w @sqlcat/api",
+    "build:web": "npm run build -w @sqlcat/web",
+    "deploy": "npm run db:seed && npm run build",
+    "deploy:api": "npm run db:seed && npm run build:api",
+    "deploy:web": "npm run build:web",
+    "postinstall": "npm run build:types"
+  }
+}
