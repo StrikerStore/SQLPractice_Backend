@@ -17,6 +17,9 @@ dotenv.config();
 const app = express();
 const logger = pino();
 
+// ─── Trust Proxy (Required for Railway) ──────────────────────────────────────
+app.set('trust proxy', 1);
+
 // ─── Request ID ──────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
   const id = uuidv4();
@@ -123,8 +126,8 @@ const PORT = Number(process.env.PORT) || 3001;
 const startServer = async () => {
   questionStore.load();
   await testConnection();
-  app.listen(PORT, () => {
-    logger.info(`Server listening on port ${PORT} — ${questionStore.count} questions loaded`);
+  app.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Server listening on 0.0.0.0:${PORT} — ${questionStore.count} questions loaded`);
   });
 };
 
