@@ -1,0 +1,222 @@
+[
+  {
+    "id": "H07",
+    "db": "hr",
+    "title": "Total employee count",
+    "topic": "Aggregates & Filters",
+    "difficulty": "easy",
+    "prompt": "How many distinct employees (by `emp_no`) are in the `employees` table? Return a single number aliased as `total`.",
+    "hint": "COUNT(DISTINCT emp_no) or just COUNT(*) since emp_no is the PK.",
+    "canonicalSql": "SELECT COUNT(*) AS total FROM employees",
+    "starterSql": "SELECT COUNT(*) AS total\nFROM employees"
+  },
+  {
+    "id": "H05",
+    "db": "hr",
+    "title": "Salary history rows for employee 101",
+    "topic": "Indexing & Date Ranges",
+    "difficulty": "easy",
+    "prompt": "How many rows in the `salaries` table are for `emp_no = 101` with `from_date` on or after `2020-01-01` and before `2025-01-01`? Return a single number aliased as `total`.",
+    "hint": "Filter emp_no = 101 first (uses the index leading column), then add a half-open range on from_date.",
+    "canonicalSql": "SELECT COUNT(*) AS total FROM salaries WHERE emp_no = 101 AND from_date >= '2020-01-01' AND from_date < '2025-01-01'",
+    "starterSql": "SELECT COUNT(*) AS total\nFROM salaries\nWHERE emp_no = 101\n  AND -- add date range conditions"
+  },
+  {
+    "id": "H03",
+    "db": "hr",
+    "title": "Average current salary",
+    "topic": "Aggregates & Filters",
+    "difficulty": "easy",
+    "prompt": "Use a CTE to find the **average salary** among all rows in `salaries` where `to_date > CURDATE()`. Alias the result as `avg_salary`.",
+    "hint": "WITH current_sal AS (SELECT salary FROM salaries WHERE to_date > CURDATE()) SELECT AVG(salary) AS avg_salary FROM current_sal.",
+    "canonicalSql": "WITH current_sal AS (SELECT salary FROM salaries WHERE to_date > CURDATE()) SELECT AVG(salary) AS avg_salary FROM current_sal",
+    "starterSql": "WITH current_sal AS (\n  SELECT salary\n  FROM salaries\n  WHERE -- only active salaries\n)\nSELECT AVG(salary) AS avg_salary FROM current_sal"
+  },
+  {
+    "id": "H01",
+    "db": "hr",
+    "title": "Largest department by headcount",
+    "topic": "JOINs & GROUP BY",
+    "difficulty": "easy",
+    "prompt": "Join `employees`, `dept_emp`, and `departments`. Return the `dept_name` with the **most employees**. Alias the count as `headcount`.",
+    "hint": "employees → dept_emp ON emp_no → departments ON dept_no. GROUP BY dept_name, ORDER BY COUNT(*) DESC LIMIT 1.",
+    "canonicalSql": "SELECT d.dept_name, COUNT(*) AS headcount FROM employees e JOIN dept_emp de ON e.emp_no = de.emp_no JOIN departments d ON de.dept_no = d.dept_no GROUP BY d.dept_name ORDER BY headcount DESC LIMIT 1",
+    "starterSql": "SELECT d.dept_name, COUNT(*) AS headcount\nFROM employees e\nJOIN dept_emp de ON e.emp_no = de.emp_no\nJOIN departments d ON de.dept_no = d.dept_no\nGROUP BY d.dept_name\nORDER BY -- ?\nLIMIT 1"
+  },
+  {
+    "id": "H08",
+    "db": "hr",
+    "title": "Average current salary per department",
+    "topic": "JOINs & GROUP BY",
+    "difficulty": "medium",
+    "prompt": "Join `employees`, `dept_emp`, `departments`, and `salaries`. Return each `dept_name` and its average current salary (`to_date > CURDATE()`) aliased as `avg_salary` (ROUND to 2 decimal places). Order by `avg_salary` descending.",
+    "hint": "Four-table join. Filter salaries to to_date > CURDATE(). GROUP BY dept_name. Use ROUND(AVG(s.salary), 2).",
+    "canonicalSql": "SELECT d.dept_name, ROUND(AVG(s.salary), 2) AS avg_salary FROM employees e JOIN dept_emp de ON e.emp_no = de.emp_no JOIN departments d ON de.dept_no = d.dept_no JOIN salaries s ON s.emp_no = e.emp_no WHERE s.to_date > CURDATE() GROUP BY d.dept_name ORDER BY avg_salary DESC",
+    "starterSql": "SELECT d.dept_name, ROUND(AVG(s.salary), 2) AS avg_salary\nFROM employees e\nJOIN dept_emp de ON e.emp_no = de.emp_no\nJOIN departments d ON de.dept_no = d.dept_no\nJOIN salaries s ON s.emp_no = e.emp_no\nWHERE -- only current salaries\nGROUP BY d.dept_name\nORDER BY -- ?"
+  },
+  {
+    "id": "H04",
+    "db": "hr",
+    "title": "Employees with high current salary",
+    "topic": "EXISTS & Semi-Joins",
+    "difficulty": "medium",
+    "prompt": "List up to 5 `emp_no` values (ascending) from `employees` that **currently** have a salary > 95000. A current row has `to_date > CURDATE()`. Use EXISTS.",
+    "hint": "WHERE EXISTS (SELECT 1 FROM salaries s WHERE s.emp_no = e.emp_no AND s.salary > 95000 AND s.to_date > CURDATE()).",
+    "canonicalSql": "SELECT emp_no FROM employees e WHERE EXISTS (SELECT 1 FROM salaries s WHERE s.emp_no = e.emp_no AND s.salary > 95000 AND s.to_date > CURDATE()) ORDER BY emp_no LIMIT 5",
+    "starterSql": "SELECT emp_no\nFROM employees e\nWHERE EXISTS (\n  SELECT 1 FROM salaries s\n  WHERE s.emp_no = e.emp_no\n    AND -- salary condition\n    AND -- only current rows\n)\nORDER BY emp_no\nLIMIT 5"
+  },
+  {
+    "id": "H09",
+    "db": "hr",
+    "title": "Departments above average salary",
+    "topic": "Subqueries",
+    "difficulty": "hard",
+    "prompt": "Return `dept_name` values where the **average current salary** (rows with `to_date > CURDATE()`) is above the overall average current salary across all departments. Order alphabetically.",
+    "hint": "Compute per-department avg in a CTE, compute overall avg as a scalar subquery, then filter with HAVING or WHERE.",
+    "canonicalSql": "WITH dept_avg AS (SELECT d.dept_name, AVG(s.salary) AS avg_sal FROM employees e JOIN dept_emp de ON e.emp_no = de.emp_no JOIN departments d ON de.dept_no = d.dept_no JOIN salaries s ON s.emp_no = e.emp_no WHERE s.to_date > CURDATE() GROUP BY d.dept_name) SELECT dept_name FROM dept_avg WHERE avg_sal > (SELECT AVG(avg_sal) FROM dept_avg) ORDER BY dept_name",
+    "starterSql": "WITH dept_avg AS (\n  SELECT d.dept_name, AVG(s.salary) AS avg_sal\n  FROM employees e\n  JOIN dept_emp de ON e.emp_no = de.emp_no\n  JOIN departments d ON de.dept_no = d.dept_no\n  JOIN salaries s ON s.emp_no = e.emp_no\n  WHERE -- only current salaries\n  GROUP BY d.dept_name\n)\nSELECT dept_name\nFROM dept_avg\nWHERE avg_sal > (SELECT AVG(avg_sal) FROM dept_avg)\nORDER BY dept_name"
+  },
+  {
+    "id": "H02",
+    "db": "hr",
+    "title": "Highest current salary",
+    "topic": "Window Functions",
+    "difficulty": "medium",
+    "prompt": "Return the `emp_no` with the **highest** salary among current rows (`to_date > CURDATE()`). Tie-break by smallest `emp_no`. Alias the salary column as `salary`.",
+    "hint": "ROW_NUMBER() OVER (ORDER BY salary DESC, emp_no ASC) in a CTE filtering to_date > CURDATE(). Select where rn = 1.",
+    "canonicalSql": "WITH ranked AS (SELECT emp_no, salary, ROW_NUMBER() OVER (ORDER BY salary DESC, emp_no ASC) AS rn FROM salaries WHERE to_date > CURDATE()) SELECT emp_no, salary FROM ranked WHERE rn = 1",
+    "starterSql": "WITH ranked AS (\n  SELECT emp_no, salary,\n    ROW_NUMBER() OVER (ORDER BY -- ?) AS rn\n  FROM salaries\n  WHERE -- only current rows\n)\nSELECT emp_no, salary FROM ranked WHERE rn = 1"
+  },
+  {
+    "id": "H06",
+    "db": "hr",
+    "title": "Salary rank within department",
+    "topic": "Window Functions",
+    "difficulty": "hard",
+    "prompt": "For each department, rank current employees by their salary descending. Return `dept_name`, `emp_no`, `salary`, and `salary_rank`. Only include current salary rows (`to_date > CURDATE()`). Order by `dept_name` ascending, then `salary_rank` ascending.",
+    "hint": "Four-table join. Filter to current salaries. RANK() OVER (PARTITION BY d.dept_name ORDER BY s.salary DESC) AS salary_rank.",
+    "canonicalSql": "SELECT d.dept_name, e.emp_no, s.salary, RANK() OVER (PARTITION BY d.dept_name ORDER BY s.salary DESC) AS salary_rank FROM employees e JOIN dept_emp de ON e.emp_no = de.emp_no JOIN departments d ON de.dept_no = d.dept_no JOIN salaries s ON s.emp_no = e.emp_no WHERE s.to_date > CURDATE() ORDER BY d.dept_name, salary_rank",
+    "starterSql": "SELECT\n  d.dept_name,\n  e.emp_no,\n  s.salary,\n  RANK() OVER (PARTITION BY -- ? ORDER BY -- ?) AS salary_rank\nFROM employees e\nJOIN dept_emp de ON e.emp_no = de.emp_no\nJOIN departments d ON de.dept_no = d.dept_no\nJOIN salaries s ON s.emp_no = e.emp_no\nWHERE -- only current salaries\nORDER BY d.dept_name, salary_rank"
+  },
+  {
+    "id": "H10",
+    "db": "hr",
+    "title": "Employees with title 'Manager'",
+    "topic": "Aggregates & Filters",
+    "difficulty": "easy",
+    "prompt": "How many employees have a title of `'Manager'` in the `titles` table? Return a single number aliased as `total`.",
+    "hint": "WHERE title = 'Manager'. COUNT(DISTINCT emp_no) to avoid duplicates if same employee has multiple Manager rows.",
+    "canonicalSql": "SELECT COUNT(DISTINCT emp_no) AS total FROM titles WHERE title = 'Manager'",
+    "starterSql": "SELECT COUNT(DISTINCT emp_no) AS total\nFROM titles\nWHERE -- filter by title"
+  },
+  {
+    "id": "H11",
+    "db": "hr",
+    "title": "Departments with no manager assigned",
+    "topic": "EXISTS & Semi-Joins",
+    "difficulty": "medium",
+    "prompt": "Return `dept_no` values from `departments` that do **not** have any row in `dept_manager`. Order alphabetically.",
+    "hint": "NOT EXISTS (SELECT 1 FROM dept_manager dm WHERE dm.dept_no = d.dept_no).",
+    "canonicalSql": "SELECT dept_no FROM departments d WHERE NOT EXISTS (SELECT 1 FROM dept_manager dm WHERE dm.dept_no = d.dept_no) ORDER BY dept_no",
+    "starterSql": "SELECT dept_no\nFROM departments d\nWHERE NOT EXISTS (\n  SELECT 1 FROM dept_manager dm\n  WHERE -- link condition\n)\nORDER BY dept_no"
+  },
+  {
+    "id": "H12",
+    "db": "hr",
+    "title": "Employees hired in 2010",
+    "topic": "Indexing & Date Ranges",
+    "difficulty": "easy",
+    "prompt": "How many employees were hired in calendar year 2010 (`hire_date >= '2010-01-01'` and `< '2011-01-01'`)? Return a single number aliased as `total`.",
+    "hint": "Half-open date range on hire_date. COUNT(*).",
+    "canonicalSql": "SELECT COUNT(*) AS total FROM employees WHERE hire_date >= '2010-01-01' AND hire_date < '2011-01-01'",
+    "starterSql": "SELECT COUNT(*) AS total\nFROM employees\nWHERE hire_date >= '2010-01-01'\n  AND -- upper bound"
+  },
+  {
+    "id": "H13",
+    "db": "hr",
+    "title": "Top salary earner per title",
+    "topic": "Window Functions",
+    "difficulty": "hard",
+    "prompt": "For each `title` (from the `titles` table), find the employee (`emp_no`) with the **highest current salary** (`to_date > CURDATE()` in `salaries`). Return `title`, `emp_no`, and `salary`. Tie-break by smallest `emp_no`. Order by `title` ascending.",
+    "hint": "Join titles to salaries on emp_no. Filter salaries to current. ROW_NUMBER() OVER (PARTITION BY title ORDER BY salary DESC, emp_no ASC).",
+    "canonicalSql": "WITH ranked AS (SELECT t.title, s.emp_no, s.salary, ROW_NUMBER() OVER (PARTITION BY t.title ORDER BY s.salary DESC, s.emp_no ASC) AS rn FROM titles t JOIN salaries s ON t.emp_no = s.emp_no WHERE s.to_date > CURDATE()) SELECT title, emp_no, salary FROM ranked WHERE rn = 1 ORDER BY title",
+    "starterSql": "WITH ranked AS (\n  SELECT t.title, s.emp_no, s.salary,\n    ROW_NUMBER() OVER (PARTITION BY t.title ORDER BY -- ?) AS rn\n  FROM titles t\n  JOIN salaries s ON t.emp_no = s.emp_no\n  WHERE -- current salaries only\n)\nSELECT title, emp_no, salary FROM ranked WHERE rn = 1 ORDER BY title"
+  },
+  {
+    "id": "H14",
+    "db": "hr",
+    "title": "Count of employees per gender per department",
+    "topic": "JOINs & GROUP BY",
+    "difficulty": "medium",
+    "prompt": "Join `employees`, `dept_emp`, and `departments`. Return `dept_name`, `gender`, and `employee_count`. Order by `dept_name` ascending, then `gender` ascending.",
+    "hint": "GROUP BY dept_name, gender. COUNT(*) AS employee_count.",
+    "canonicalSql": "SELECT d.dept_name, e.gender, COUNT(*) AS employee_count FROM employees e JOIN dept_emp de ON e.emp_no = de.emp_no JOIN departments d ON de.dept_no = d.dept_no GROUP BY d.dept_name, e.gender ORDER BY d.dept_name, e.gender",
+    "starterSql": "SELECT d.dept_name, e.gender, COUNT(*) AS employee_count\nFROM employees e\nJOIN dept_emp de ON e.emp_no = de.emp_no\nJOIN departments d ON de.dept_no = d.dept_no\nGROUP BY -- ?\nORDER BY d.dept_name, e.gender"
+  },
+  {
+    "id": "H15",
+    "db": "hr",
+    "title": "Median current salary",
+    "topic": "Subqueries",
+    "difficulty": "hard",
+    "prompt": "Find the **median** current salary (rows with `to_date > CURDATE()`) across all employees. Use the AVG of the two middle values approach. Alias the result as `median_salary`. Round to 2 decimal places.",
+    "hint": "Use AVG(salary) from a subquery that selects only the middle rows via LIMIT with OFFSET.",
+    "canonicalSql": "SELECT ROUND(AVG(salary), 2) AS median_salary FROM (SELECT salary FROM salaries WHERE to_date > CURDATE() ORDER BY salary LIMIT 2 - (SELECT COUNT(*) FROM salaries WHERE to_date > CURDATE()) % 2 OFFSET (SELECT (COUNT(*) - 1) / 2 FROM salaries WHERE to_date > CURDATE())) sub",
+    "starterSql": "SELECT ROUND(AVG(salary), 2) AS median_salary\nFROM (\n  SELECT salary FROM salaries\n  WHERE to_date > CURDATE()\n  ORDER BY salary\n  LIMIT 2 - (SELECT COUNT(*) FROM salaries WHERE to_date > CURDATE()) % 2\n  OFFSET (SELECT (COUNT(*) - 1) / 2 FROM salaries WHERE to_date > CURDATE())\n) sub"
+  },
+  {
+    "id": "H16",
+    "db": "hr",
+    "title": "Salary growth for employee 101",
+    "topic": "Window Functions",
+    "difficulty": "hard",
+    "prompt": "For `emp_no = 101`, compute the salary at each `from_date` and the salary in the **previous row** (ordered by `from_date`). Return `from_date`, `salary`, and `prev_salary`. Order by `from_date` ascending.",
+    "hint": "LAG(salary, 1) OVER (ORDER BY from_date ASC) AS prev_salary.",
+    "canonicalSql": "SELECT from_date, salary, LAG(salary, 1) OVER (ORDER BY from_date ASC) AS prev_salary FROM salaries WHERE emp_no = 101 ORDER BY from_date",
+    "starterSql": "SELECT from_date, salary,\n  LAG(salary, 1) OVER (ORDER BY -- ?) AS prev_salary\nFROM salaries\nWHERE emp_no = 101\nORDER BY from_date"
+  },
+  {
+    "id": "H17",
+    "db": "hr",
+    "title": "Employees earning more than their department average",
+    "topic": "Subqueries",
+    "difficulty": "hard",
+    "prompt": "Return `emp_no` values (ascending, LIMIT 10) where the employee's **latest salary** (max `from_date` row) exceeds the **average current salary** of their department.",
+    "hint": "CTE for latest salary per employee, CTE for department averages (joining dept_emp). Then filter where latest > dept_avg.",
+    "canonicalSql": "WITH latest_sal AS (SELECT emp_no, salary FROM salaries s1 WHERE from_date = (SELECT MAX(from_date) FROM salaries s2 WHERE s2.emp_no = s1.emp_no)), dept_avg AS (SELECT de.emp_no, AVG(ls.salary) OVER (PARTITION BY de.dept_no) AS avg_dept_salary FROM dept_emp de JOIN latest_sal ls ON de.emp_no = ls.emp_no) SELECT da.emp_no FROM dept_avg da JOIN latest_sal ls ON da.emp_no = ls.emp_no WHERE ls.salary > da.avg_dept_salary ORDER BY da.emp_no LIMIT 10",
+    "starterSql": "WITH latest_sal AS (\n  SELECT emp_no, salary FROM salaries s1\n  WHERE from_date = (SELECT MAX(from_date) FROM salaries s2 WHERE s2.emp_no = s1.emp_no)\n),\ndept_avg AS (\n  SELECT de.emp_no,\n    AVG(ls.salary) OVER (PARTITION BY de.dept_no) AS avg_dept_salary\n  FROM dept_emp de\n  JOIN latest_sal ls ON de.emp_no = ls.emp_no\n)\nSELECT da.emp_no\nFROM dept_avg da\nJOIN latest_sal ls ON da.emp_no = ls.emp_no\nWHERE -- salary condition\nORDER BY da.emp_no\nLIMIT 10"
+  },
+  {
+    "id": "H18",
+    "db": "hr",
+    "title": "Department with highest average hire age",
+    "topic": "JOINs & GROUP BY",
+    "difficulty": "medium",
+    "prompt": "Join `employees`, `dept_emp`, and `departments`. Compute the average age at hire (`DATEDIFF(hire_date, birth_date) / 365`) per department. Return the `dept_name` with the highest average hire age. Alias the age as `avg_hire_age` rounded to 2 dp.",
+    "hint": "GROUP BY dept_name. ORDER BY AVG(DATEDIFF(hire_date, birth_date)/365) DESC LIMIT 1.",
+    "canonicalSql": "SELECT d.dept_name, ROUND(AVG(DATEDIFF(e.hire_date, e.birth_date) / 365), 2) AS avg_hire_age FROM employees e JOIN dept_emp de ON e.emp_no = de.emp_no JOIN departments d ON de.dept_no = d.dept_no GROUP BY d.dept_name ORDER BY avg_hire_age DESC LIMIT 1",
+    "starterSql": "SELECT d.dept_name, ROUND(AVG(DATEDIFF(e.hire_date, e.birth_date) / 365), 2) AS avg_hire_age\nFROM employees e\nJOIN dept_emp de ON e.emp_no = de.emp_no\nJOIN departments d ON de.dept_no = d.dept_no\nGROUP BY d.dept_name\nORDER BY -- ?\nLIMIT 1"
+  },
+  {
+    "id": "H19",
+    "db": "hr",
+    "title": "Salary percentile for highest earner",
+    "topic": "Window Functions",
+    "difficulty": "hard",
+    "prompt": "Using the current salary rows (`to_date > CURDATE()`), compute `CUME_DIST()` for each employee's salary. Return the `emp_no` with the **highest salary** and their `cume_dist` value. Alias it as `cume_dist`. Round to 4 decimal places.",
+    "hint": "CUME_DIST() OVER (ORDER BY salary ASC). Filter to the max salary row.",
+    "canonicalSql": "WITH ranked AS (SELECT emp_no, salary, ROUND(CUME_DIST() OVER (ORDER BY salary ASC), 4) AS cume_dist FROM salaries WHERE to_date > CURDATE()) SELECT emp_no, salary, cume_dist FROM ranked WHERE salary = (SELECT MAX(salary) FROM salaries WHERE to_date > CURDATE()) ORDER BY emp_no LIMIT 1",
+    "starterSql": "WITH ranked AS (\n  SELECT emp_no, salary,\n    ROUND(CUME_DIST() OVER (ORDER BY salary ASC), 4) AS cume_dist\n  FROM salaries\n  WHERE -- current rows\n)\nSELECT emp_no, salary, cume_dist\nFROM ranked\nWHERE salary = (SELECT MAX(salary) FROM salaries WHERE to_date > CURDATE())\nORDER BY emp_no LIMIT 1"
+  },
+  {
+    "id": "H20",
+    "db": "hr",
+    "title": "Employees in multiple departments",
+    "topic": "GROUP BY & HAVING",
+    "difficulty": "medium",
+    "prompt": "Return `emp_no` values (ascending, LIMIT 5) that appear in **more than one** row in `dept_emp` (i.e., assigned to multiple departments).",
+    "hint": "GROUP BY emp_no HAVING COUNT(*) > 1.",
+    "canonicalSql": "SELECT emp_no FROM dept_emp GROUP BY emp_no HAVING COUNT(*) > 1 ORDER BY emp_no LIMIT 5",
+    "starterSql": "SELECT emp_no\nFROM dept_emp\nGROUP BY emp_no\nHAVING -- more than one dept\nORDER BY emp_no\nLIMIT 5"
+  }
+]

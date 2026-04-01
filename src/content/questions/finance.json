@@ -1,0 +1,223 @@
+[
+  {
+    "id": "B06",
+    "db": "finance",
+    "title": "Transaction count per txn_type",
+    "topic": "Aggregates & Filters",
+    "difficulty": "easy",
+    "prompt": "Return each `txn_type` and its total count aliased as `count`. Order by `count` descending.",
+    "hint": "SELECT txn_type, COUNT(*) AS count FROM transactions GROUP BY txn_type ORDER BY count DESC.",
+    "canonicalSql": "SELECT txn_type, COUNT(*) AS count FROM transactions GROUP BY txn_type ORDER BY count DESC",
+    "starterSql": "SELECT txn_type, COUNT(*) AS count\nFROM transactions\nGROUP BY txn_type\nORDER BY -- ?"
+  },
+  {
+    "id": "B05",
+    "db": "finance",
+    "title": "June 2024 debit transactions for account 200",
+    "topic": "Indexing & Date Ranges",
+    "difficulty": "easy",
+    "prompt": "How many `transactions` have `txn_type = 'DEBIT'`, `account_id = 200`, and `posted_at` in **June 2024** (on or after `2024-06-01` and before `2024-07-01`)? Return a single number aliased as `total`.",
+    "hint": "Filter account_id first (equality), then txn_type, then the half-open date range.",
+    "canonicalSql": "SELECT COUNT(*) AS total FROM transactions WHERE account_id = 200 AND txn_type = 'DEBIT' AND posted_at >= '2024-06-01' AND posted_at < '2024-07-01'",
+    "starterSql": "SELECT COUNT(*) AS total\nFROM transactions\nWHERE account_id = 200\n  AND txn_type = 'DEBIT'\n  AND -- add date range"
+  },
+  {
+    "id": "B01",
+    "db": "finance",
+    "title": "Account type with lowest net flow",
+    "topic": "JOINs & GROUP BY",
+    "difficulty": "easy",
+    "prompt": "For the 2024 calendar year (`posted_at >= '2024-01-01'` and `< '2025-01-01'`), which `account_type` has the **lowest sum** of `amount` (most negative net)? Join `transactions` to `accounts`. Alias the sum as `net_flow`.",
+    "hint": "JOIN transactions → accounts ON account_id. Filter by year. GROUP BY account_type, ORDER BY SUM(amount) ASC LIMIT 1.",
+    "canonicalSql": "SELECT a.account_type, SUM(t.amount) AS net_flow FROM transactions t JOIN accounts a ON t.account_id = a.account_id WHERE t.posted_at >= '2024-01-01' AND t.posted_at < '2025-01-01' GROUP BY a.account_type ORDER BY net_flow ASC LIMIT 1",
+    "starterSql": "SELECT a.account_type, SUM(t.amount) AS net_flow\nFROM transactions t\nJOIN accounts a ON t.account_id = a.account_id\nWHERE -- add year filter\nGROUP BY a.account_type\nORDER BY -- ?\nLIMIT 1"
+  },
+  {
+    "id": "B09",
+    "db": "finance",
+    "title": "Transaction count and total amount per account type",
+    "topic": "JOINs & GROUP BY",
+    "difficulty": "medium",
+    "prompt": "Join `transactions` to `accounts`. Return each `account_type` with its total `txn_count` and `total_amount` (SUM of amount). Order by `total_amount` descending.",
+    "hint": "JOIN on account_id. GROUP BY account_type. COUNT(*) AS txn_count, SUM(amount) AS total_amount.",
+    "canonicalSql": "SELECT a.account_type, COUNT(*) AS txn_count, SUM(t.amount) AS total_amount FROM transactions t JOIN accounts a ON t.account_id = a.account_id GROUP BY a.account_type ORDER BY total_amount DESC",
+    "starterSql": "SELECT a.account_type, COUNT(*) AS txn_count, SUM(t.amount) AS total_amount\nFROM transactions t\nJOIN accounts a ON t.account_id = a.account_id\nGROUP BY a.account_type\nORDER BY -- ?"
+  },
+  {
+    "id": "B03",
+    "db": "finance",
+    "title": "Highest revenue month",
+    "topic": "CTEs",
+    "difficulty": "medium",
+    "prompt": "Use a CTE to group `transactions` by calendar month (`YYYY-MM` format). Return the month with the **highest total `amount`**. Alias the month as `month` and the total as `total_amount`.",
+    "hint": "DATE_FORMAT(posted_at, '%Y-%m') AS month. GROUP BY month. ORDER BY total_amount DESC LIMIT 1.",
+    "canonicalSql": "WITH monthly AS (SELECT DATE_FORMAT(posted_at, '%Y-%m') AS month, SUM(amount) AS total_amount FROM transactions GROUP BY month) SELECT month, total_amount FROM monthly ORDER BY total_amount DESC LIMIT 1",
+    "starterSql": "WITH monthly AS (\n  SELECT\n    DATE_FORMAT(posted_at, '%Y-%m') AS month,\n    SUM(amount) AS total_amount\n  FROM transactions\n  GROUP BY month\n)\nSELECT month, total_amount\nFROM monthly\nORDER BY -- ?\nLIMIT 1"
+  },
+  {
+    "id": "B04",
+    "db": "finance",
+    "title": "Accounts with large absolute balance",
+    "topic": "Subqueries",
+    "difficulty": "medium",
+    "prompt": "List up to 3 `account_id` values (ascending) where `ABS(balance)` is **greater than** the average of `ABS(balance)` across all accounts.",
+    "hint": "Compare ABS(balance) to: SELECT AVG(ABS(balance)) FROM accounts.",
+    "canonicalSql": "SELECT account_id FROM accounts WHERE ABS(balance) > (SELECT AVG(ABS(balance)) FROM accounts) ORDER BY account_id LIMIT 3",
+    "starterSql": "SELECT account_id\nFROM accounts\nWHERE ABS(balance) > (\n  -- scalar subquery: average absolute balance\n)\nORDER BY account_id\nLIMIT 3"
+  },
+  {
+    "id": "B07",
+    "db": "finance",
+    "title": "Largest single transaction per account",
+    "topic": "Window Functions",
+    "difficulty": "medium",
+    "prompt": "For each `account_id`, find the **single largest transaction** by `amount`. Return `account_id`, `txn_id`, and `amount`. Tie-break by smallest `txn_id`. Order by `account_id` ascending.",
+    "hint": "ROW_NUMBER() OVER (PARTITION BY account_id ORDER BY amount DESC, txn_id ASC). Filter rn = 1.",
+    "canonicalSql": "WITH ranked AS (SELECT account_id, txn_id, amount, ROW_NUMBER() OVER (PARTITION BY account_id ORDER BY amount DESC, txn_id ASC) AS rn FROM transactions) SELECT account_id, txn_id, amount FROM ranked WHERE rn = 1 ORDER BY account_id",
+    "starterSql": "WITH ranked AS (\n  SELECT account_id, txn_id, amount,\n    ROW_NUMBER() OVER (PARTITION BY account_id ORDER BY -- ?) AS rn\n  FROM transactions\n)\nSELECT account_id, txn_id, amount\nFROM ranked WHERE rn = 1\nORDER BY account_id"
+  },
+  {
+    "id": "B02",
+    "db": "finance",
+    "title": "Running balance for account 100",
+    "topic": "Window Functions",
+    "difficulty": "hard",
+    "prompt": "For `account_id = 100`, compute the **running sum** of `amount` ordered by `posted_at` ascending, then `txn_id` ascending. Return all columns plus `running_balance`. Order by `posted_at`, `txn_id`.",
+    "hint": "SUM(amount) OVER (PARTITION BY account_id ORDER BY posted_at, txn_id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW).",
+    "canonicalSql": "SELECT txn_id, account_id, amount, posted_at, SUM(amount) OVER (PARTITION BY account_id ORDER BY posted_at, txn_id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_balance FROM transactions WHERE account_id = 100 ORDER BY posted_at, txn_id",
+    "starterSql": "SELECT\n  txn_id, account_id, amount, posted_at,\n  SUM(amount) OVER (\n    PARTITION BY account_id\n    ORDER BY posted_at, txn_id\n    ROWS BETWEEN -- ?\n  ) AS running_balance\nFROM transactions\nWHERE account_id = 100\nORDER BY posted_at, txn_id"
+  },
+  {
+    "id": "B10",
+    "db": "finance",
+    "title": "Customers with no transactions in 2024",
+    "topic": "EXISTS & Semi-Joins",
+    "difficulty": "medium",
+    "prompt": "Return `customer_id` values from `customers_fin` (ascending, LIMIT 10) that have **no** linked account with any transaction in 2024 (`posted_at >= '2024-01-01'` and `< '2025-01-01'`).",
+    "hint": "NOT EXISTS — link customers_fin → accounts → transactions. Filter transactions to 2024.",
+    "canonicalSql": "SELECT customer_id FROM customers_fin c WHERE NOT EXISTS (SELECT 1 FROM accounts a JOIN transactions t ON a.account_id = t.account_id WHERE a.customer_id = c.customer_id AND t.posted_at >= '2024-01-01' AND t.posted_at < '2025-01-01') ORDER BY customer_id LIMIT 10",
+    "starterSql": "SELECT customer_id\nFROM customers_fin c\nWHERE NOT EXISTS (\n  SELECT 1 FROM accounts a\n  JOIN transactions t ON a.account_id = t.account_id\n  WHERE a.customer_id = c.customer_id\n    AND -- 2024 range\n)\nORDER BY customer_id\nLIMIT 10"
+  },
+  {
+    "id": "B11",
+    "db": "finance",
+    "title": "Average balance per branch",
+    "topic": "JOINs & GROUP BY",
+    "difficulty": "easy",
+    "prompt": "Join `accounts` to `branches`. Return each `city` and its average account `balance` aliased as `avg_balance`, rounded to 2 decimal places. Order by `avg_balance` descending.",
+    "hint": "JOIN accounts → branches ON branch_id. GROUP BY city. ROUND(AVG(balance), 2).",
+    "canonicalSql": "SELECT b.city, ROUND(AVG(a.balance), 2) AS avg_balance FROM accounts a JOIN branches b ON a.branch_id = b.branch_id GROUP BY b.city ORDER BY avg_balance DESC",
+    "starterSql": "SELECT b.city, ROUND(AVG(a.balance), 2) AS avg_balance\nFROM accounts a\nJOIN branches b ON a.branch_id = b.branch_id\nGROUP BY b.city\nORDER BY -- ?"
+  },
+  {
+    "id": "B12",
+    "db": "finance",
+    "title": "Top 3 customers by total credit amount in 2024",
+    "topic": "CTEs",
+    "difficulty": "medium",
+    "prompt": "Using a CTE, find the total `CREDIT` transaction `amount` per customer for 2024. Return `customer_id` (from `customers_fin`), and `total_credit`. Return the top 3 by `total_credit` descending. Tie-break by `customer_id` ascending.",
+    "hint": "CTE: join transactions → accounts → customers_fin. Filter txn_type='CREDIT' and year 2024. GROUP BY customer_id. Top 3.",
+    "canonicalSql": "WITH cust_credit AS (SELECT cf.customer_id, SUM(t.amount) AS total_credit FROM transactions t JOIN accounts a ON t.account_id = a.account_id JOIN customers_fin cf ON a.customer_id = cf.customer_id WHERE t.txn_type = 'CREDIT' AND t.posted_at >= '2024-01-01' AND t.posted_at < '2025-01-01' GROUP BY cf.customer_id) SELECT customer_id, total_credit FROM cust_credit ORDER BY total_credit DESC, customer_id ASC LIMIT 3",
+    "starterSql": "WITH cust_credit AS (\n  SELECT cf.customer_id, SUM(t.amount) AS total_credit\n  FROM transactions t\n  JOIN accounts a ON t.account_id = a.account_id\n  JOIN customers_fin cf ON a.customer_id = cf.customer_id\n  WHERE t.txn_type = 'CREDIT'\n    AND -- 2024 filter\n  GROUP BY cf.customer_id\n)\nSELECT customer_id, total_credit\nFROM cust_credit\nORDER BY -- ?\nLIMIT 3"
+  },
+  {
+    "id": "B13",
+    "db": "finance",
+    "title": "Monthly net flow for account 100",
+    "topic": "Aggregates & Filters",
+    "difficulty": "medium",
+    "prompt": "For `account_id = 100`, return each calendar month (`YYYY-MM` aliased as `month`) and the **net amount** (SUM of `amount`) aliased as `net_flow`. Order by `month` ascending.",
+    "hint": "DATE_FORMAT(posted_at,'%Y-%m') GROUP BY month. WHERE account_id = 100.",
+    "canonicalSql": "SELECT DATE_FORMAT(posted_at, '%Y-%m') AS month, SUM(amount) AS net_flow FROM transactions WHERE account_id = 100 GROUP BY month ORDER BY month",
+    "starterSql": "SELECT DATE_FORMAT(posted_at, '%Y-%m') AS month, SUM(amount) AS net_flow\nFROM transactions\nWHERE account_id = 100\nGROUP BY month\nORDER BY -- ?"
+  },
+  {
+    "id": "B14",
+    "db": "finance",
+    "title": "Account with highest transaction variance",
+    "topic": "Subqueries",
+    "difficulty": "hard",
+    "prompt": "Which `account_id` has the **highest variance** in transaction `amount`? Use `VARIANCE(amount)`. Return `account_id` and `amount_variance` (ROUND to 2 dp). Only consider accounts with at least 10 transactions.",
+    "hint": "GROUP BY account_id HAVING COUNT(*) >= 10. ORDER BY VARIANCE(amount) DESC LIMIT 1.",
+    "canonicalSql": "SELECT account_id, ROUND(VARIANCE(amount), 2) AS amount_variance FROM transactions GROUP BY account_id HAVING COUNT(*) >= 10 ORDER BY amount_variance DESC LIMIT 1",
+    "starterSql": "SELECT account_id, ROUND(VARIANCE(amount), 2) AS amount_variance\nFROM transactions\nGROUP BY account_id\nHAVING -- minimum transaction count\nORDER BY -- ?\nLIMIT 1"
+  },
+  {
+    "id": "B15",
+    "db": "finance",
+    "title": "Segment with highest average account balance",
+    "topic": "JOINs & GROUP BY",
+    "difficulty": "medium",
+    "prompt": "Join `accounts` to `customers_fin`. Return each `segment` with its average `balance` aliased as `avg_balance` (ROUND to 2 dp). Order by `avg_balance` descending.",
+    "hint": "JOIN accounts → customers_fin ON customer_id. GROUP BY segment. ROUND(AVG(balance), 2).",
+    "canonicalSql": "SELECT cf.segment, ROUND(AVG(a.balance), 2) AS avg_balance FROM accounts a JOIN customers_fin cf ON a.customer_id = cf.customer_id GROUP BY cf.segment ORDER BY avg_balance DESC",
+    "starterSql": "SELECT cf.segment, ROUND(AVG(a.balance), 2) AS avg_balance\nFROM accounts a\nJOIN customers_fin cf ON a.customer_id = cf.customer_id\nGROUP BY cf.segment\nORDER BY -- ?"
+  },
+  {
+    "id": "B16",
+    "db": "finance",
+    "title": "FX-converted balance for EUR accounts",
+    "topic": "JOINs & GROUP BY",
+    "difficulty": "hard",
+    "prompt": "Using `fx_rates`, convert accounts' `balance` from USD to EUR (divide `balance` by the EUR `usd_rate`). Return the `account_id` and `eur_balance` (ROUND to 2 dp) for all accounts. Order by `eur_balance` descending. Limit 5.",
+    "hint": "CROSS JOIN or direct subquery scalar from fx_rates WHERE ccy = 'EUR'. balance / usd_rate.",
+    "canonicalSql": "SELECT a.account_id, ROUND(a.balance / fx.usd_rate, 2) AS eur_balance FROM accounts a JOIN fx_rates fx ON fx.ccy = 'EUR' ORDER BY eur_balance DESC LIMIT 5",
+    "starterSql": "SELECT a.account_id, ROUND(a.balance / fx.usd_rate, 2) AS eur_balance\nFROM accounts a\nJOIN fx_rates fx ON -- EUR rate join\nORDER BY eur_balance DESC\nLIMIT 5"
+  },
+  {
+    "id": "B17",
+    "db": "finance",
+    "title": "Accounts with balance above average in their branch",
+    "topic": "Window Functions",
+    "difficulty": "hard",
+    "prompt": "For each account, compute the average `balance` of accounts in the **same `branch_id`** using a window function. Return `account_id`, `branch_id`, `balance`, and `branch_avg_balance` (ROUND to 2 dp) where `balance > branch_avg_balance`. Order by `account_id`.",
+    "hint": "AVG(balance) OVER (PARTITION BY branch_id) AS branch_avg. Filter in an outer query WHERE balance > branch_avg_balance.",
+    "canonicalSql": "WITH branch_avgs AS (SELECT account_id, branch_id, balance, ROUND(AVG(balance) OVER (PARTITION BY branch_id), 2) AS branch_avg_balance FROM accounts) SELECT account_id, branch_id, balance, branch_avg_balance FROM branch_avgs WHERE balance > branch_avg_balance ORDER BY account_id",
+    "starterSql": "WITH branch_avgs AS (\n  SELECT account_id, branch_id, balance,\n    ROUND(AVG(balance) OVER (PARTITION BY -- ?), 2) AS branch_avg_balance\n  FROM accounts\n)\nSELECT account_id, branch_id, balance, branch_avg_balance\nFROM branch_avgs\nWHERE balance > branch_avg_balance\nORDER BY account_id"
+  },
+  {
+    "id": "B18",
+    "db": "finance",
+    "title": "Customers with both CREDIT and DEBIT transactions",
+    "topic": "EXISTS & Semi-Joins",
+    "difficulty": "medium",
+    "prompt": "Return `customer_id` values (ascending, LIMIT 5) from `customers_fin` who have at least one `CREDIT` **and** at least one `DEBIT` transaction (via their accounts).",
+    "hint": "EXISTS for CREDIT and EXISTS for DEBIT — link via accounts.",
+    "canonicalSql": "SELECT cf.customer_id FROM customers_fin cf WHERE EXISTS (SELECT 1 FROM accounts a JOIN transactions t ON a.account_id = t.account_id WHERE a.customer_id = cf.customer_id AND t.txn_type = 'CREDIT') AND EXISTS (SELECT 1 FROM accounts a JOIN transactions t ON a.account_id = t.account_id WHERE a.customer_id = cf.customer_id AND t.txn_type = 'DEBIT') ORDER BY cf.customer_id LIMIT 5",
+    "starterSql": "SELECT cf.customer_id\nFROM customers_fin cf\nWHERE EXISTS (\n  SELECT 1 FROM accounts a JOIN transactions t ON a.account_id = t.account_id\n  WHERE a.customer_id = cf.customer_id AND t.txn_type = 'CREDIT'\n)\n  AND EXISTS (\n  SELECT 1 FROM accounts a JOIN transactions t ON a.account_id = t.account_id\n  WHERE a.customer_id = cf.customer_id AND t.txn_type = 'DEBIT'\n)\nORDER BY cf.customer_id LIMIT 5"
+  },
+  {
+    "id": "B19",
+    "db": "finance",
+    "title": "Running total of credits for account 200",
+    "topic": "Window Functions",
+    "difficulty": "hard",
+    "prompt": "For `account_id = 200` and `txn_type = 'CREDIT'`, compute a running total of `amount` ordered by `posted_at`, then `txn_id`. Return `txn_id`, `amount`, `posted_at`, and `running_credit`. Order by `posted_at`, `txn_id`.",
+    "hint": "SUM(amount) OVER (ORDER BY posted_at, txn_id ROWS UNBOUNDED PRECEDING).",
+    "canonicalSql": "SELECT txn_id, amount, posted_at, SUM(amount) OVER (ORDER BY posted_at, txn_id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_credit FROM transactions WHERE account_id = 200 AND txn_type = 'CREDIT' ORDER BY posted_at, txn_id",
+    "starterSql": "SELECT txn_id, amount, posted_at,\n  SUM(amount) OVER (\n    ORDER BY posted_at, txn_id\n    ROWS BETWEEN -- ?\n  ) AS running_credit\nFROM transactions\nWHERE account_id = 200\n  AND txn_type = 'CREDIT'\nORDER BY posted_at, txn_id"
+  },
+  {
+    "id": "B20",
+    "db": "finance",
+    "title": "Loan accounts with negative balance",
+    "topic": "Aggregates & Filters",
+    "difficulty": "easy",
+    "prompt": "How many accounts have `account_type = 'LOAN'` **and** `balance < 0`? Return a single number aliased as `total`.",
+    "hint": "COUNT(*) WHERE account_type = 'LOAN' AND balance < 0.",
+    "canonicalSql": "SELECT COUNT(*) AS total FROM accounts WHERE account_type = 'LOAN' AND balance < 0",
+    "starterSql": "SELECT COUNT(*) AS total\nFROM accounts\nWHERE account_type = 'LOAN'\n  AND -- balance condition"
+  },
+  {
+    "id": "B21",
+    "db": "finance",
+    "title": "Branch rank by total positive-balance accounts",
+    "topic": "Window Functions",
+    "difficulty": "medium",
+    "prompt": "For each `branch_id`, count how many accounts have `balance > 0`. Then use `RANK()` to rank branches by that count descending. Return `branch_id`, `positive_count`, and `branch_rank`. Order by `branch_rank` ascending.",
+    "hint": "CTE for count per branch. RANK() OVER (ORDER BY positive_count DESC) on the CTE.",
+    "canonicalSql": "WITH pos AS (SELECT branch_id, COUNT(*) AS positive_count FROM accounts WHERE balance > 0 GROUP BY branch_id) SELECT branch_id, positive_count, RANK() OVER (ORDER BY positive_count DESC) AS branch_rank FROM pos ORDER BY branch_rank",
+    "starterSql": "WITH pos AS (\n  SELECT branch_id, COUNT(*) AS positive_count\n  FROM accounts\n  WHERE -- positive balance\n  GROUP BY branch_id\n)\nSELECT branch_id, positive_count,\n  RANK() OVER (ORDER BY -- ?) AS branch_rank\nFROM pos\nORDER BY branch_rank"
+  }
+]
+
