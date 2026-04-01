@@ -14,7 +14,8 @@
     "prestart": "node ./scripts/run-seed-safe.cjs",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "test": "vitest",
-    "seed": "tsx --tsconfig tsconfig.json src/scripts/seed.ts",
+    "seed": "node dist/scripts/seed.js",
+    "seed:dev": "tsx --tsconfig tsconfig.json src/scripts/seed.ts",
     "seed-safe": "node ./scripts/run-seed-safe.cjs"
   },
   "dependencies": {
