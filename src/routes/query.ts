@@ -1,11 +1,11 @@
 import sqlParser from 'node-sql-parser';
 const { Parser } = sqlParser;
 import { z } from 'zod';
-import { db } from '../db';
+import { db } from '../db.js';
 import pino from 'pino';
 import { Request, Response } from 'express';
-import { resultsEquivalent } from '../lib/compareResults';
-import { questionStore } from '../lib/QuestionStore';
+import { resultsEquivalent } from '../lib/compareResults.js';
+import { questionStore } from '../lib/QuestionStore.js';
 
 const logger = pino();
 const parser = new Parser();

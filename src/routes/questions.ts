@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { questionStore } from '../lib/QuestionStore';
+import { questionStore } from '../lib/QuestionStore.js';
 import rateLimit from 'express-rate-limit';
 
 const router = Router();

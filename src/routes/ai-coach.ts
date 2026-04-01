@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { ai } from '../ai';
+import { ai } from '../ai.js';
 import pino from 'pino';
 
 const logger = pino();

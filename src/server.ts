@@ -5,12 +5,12 @@ import helmet from 'helmet';
 import pino from 'pino';
 import rateLimit from 'express-rate-limit';
 import { v4 as uuidv4 } from 'uuid';
-import { executeQuery, explainQuery } from './routes/query';
-import { aiCoachHandler } from './routes/ai-coach';
-import { getSchema } from './routes/schema';
-import questionsRouter from './routes/questions';
-import { testConnection } from './db';
-import { questionStore } from './lib/QuestionStore';
+import { executeQuery, explainQuery } from './routes/query.js';
+import { aiCoachHandler } from './routes/ai-coach.js';
+import { getSchema } from './routes/schema.js';
+import questionsRouter from './routes/questions.js';
+import { testConnection } from './db.js';
+import { questionStore } from './lib/QuestionStore.js';
 
 dotenv.config();
 
