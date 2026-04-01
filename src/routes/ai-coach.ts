@@ -106,11 +106,11 @@ export const aiCoachHandler = async (req: Request, res: Response): Promise<void>
         {
           role: 'system',
           content:
-            'You are an expert SQL mentor for beginners and intermediates. Be accurate, concise, and encouraging. Use structured responses with numbered steps and optional code blocks. Never reveal the full canonical answer directly if the learner answered incorrectly — guide them instead.',
+            'You are an expert SQL mentor. Be extremely concise. Use 1 short paragraph, max 3 bullet points, and 1 short code snippet if needed. Never reveal the full canonical answer directly.',
         },
         { role: 'user', content: buildUserPrompt(input) },
       ],
-      max_tokens: 2000,
+      max_tokens: 500,
     });
 
     const analysis = completion.choices[0]?.message?.content?.trim() ?? '';
