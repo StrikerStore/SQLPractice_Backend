@@ -27,10 +27,7 @@ export type PublicQuestion = Omit<Question, 'canonicalSql'>;
 // ─── QuestionStore singleton ──────────────────────────────────────────────────
 class QuestionStore {
   private questions: Question[] = [];
-  private readonly questionsDir = path.join(
-    path.dirname(fileURLToPath(import.meta.url)),
-    '../content/questions'
-  );
+  private readonly questionsDir = path.join(process.cwd(), 'src/content/questions');
 
   load(): void {
     const loaded: Question[] = [];
