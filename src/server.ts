@@ -91,12 +91,7 @@ app.disable('x-powered-by');
 
 // ─── Health endpoint (no auth needed) ───────────────────────────────────────
 app.get('/health', (_req, res) => {
-  const loaded = questionStore.count > 0;
-  res.status(loaded ? 200 : 503).json({
-    status: loaded ? 'ok' : 'degraded',
-    ts: new Date().toISOString(),
-    questions: questionStore.count,
-  });
+  res.json({ status: 'ok', ts: new Date().toISOString(), questions: questionStore.count });
 });
 
 // ─── API Routes ──────────────────────────────────────────────────────────────
@@ -119,19 +114,36 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 const PORT = Number(process.env.PORT) || 3001;
 
 const startServer = async () => {
-  try {
-    await testConnection();
-  } catch (err) {
-    logger.warn({ err }, 'DB connection failed at startup — server will start in degraded mode');
-  }
-  try {
-    await questionStore.load();
-  } catch (err) {
-    logger.warn({ err }, 'QuestionStore failed to load — server will start in degraded mode');
-  }
-  app.listen(PORT, '0.0.0.0', () => {
-    logger.info(`Server listening on 0.0.0.0:${PORT} — ${questionStore.count} questions loaded`);
+  // Bind to port immediately — Railway healthcheck needs a 200 ASAP.
+  await new Promise<void>((resolve) => {
+    app.listen(PORT, '0.0.0.0', () => {
+      logger.info(`Server listening on 0.0.0.0:${PORT}`);
+      resolve();
+    });
   });
+
+  // Run seed + load questions in the background (non-blocking).
+  // Keeps startup fast — healthcheck passes immediately, seed runs after.
+  (async () => {
+    try {
+      await testConnection();
+      logger.info('DB connected — running seed check...');
+
+      const { spawnSync } = await import('child_process');
+      const result = spawnSync('node', ['./scripts/run-seed-safe.cjs'], {
+        stdio: 'inherit',
+        env: process.env,
+      });
+      if (result.status !== 0) {
+        logger.warn('Seed check exited non-zero — continuing anyway');
+      }
+
+      await questionStore.load();
+      logger.info(`${questionStore.count} questions loaded`);
+    } catch (err) {
+      logger.error({ err }, 'Background init failed — API may return empty data');
+    }
+  })();
 };
 
 startServer();

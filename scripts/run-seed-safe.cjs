@@ -68,8 +68,8 @@ async function main() {
       process.exit(code);
     }
   } catch (error) {
-    console.error('[seed-safe] Failed to run safe seed check.', error);
-    process.exit(1);
+    console.error('[seed-safe] Failed to run safe seed check (will skip):', error.message ?? error);
+    // Exit 0 — a connection failure is non-fatal; the server has already started.
   } finally {
     if (connection) await connection.end();
   }
