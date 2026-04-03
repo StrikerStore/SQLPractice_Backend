@@ -292,14 +292,14 @@ export const QUESTIONS: QuestionData[] = [
   },
   {
     id: 'L02_R03', level_id: 2, sort_order: 3, db: 'retail', difficulty: 'easy',
-    title: 'Customers in City1',
-    prompt: "Find customers who live in `'City1'`. Return `first_name`, `last_name`, and `email`.",
-    hint: "Use WHERE city = 'City1' with single quotes around the string value.",
-    canonical_sql: "SELECT first_name, last_name, email FROM customers WHERE city = 'City1'",
+    title: 'Customers in Chicago',
+    prompt: "Find customers who live in `'Chicago'`. Return `first_name`, `last_name`, and `email`.",
+    hint: "Use WHERE city = 'Chicago' with single quotes around the string value.",
+    canonical_sql: "SELECT first_name, last_name, email FROM customers WHERE city = 'Chicago'",
     starter_sql: null,
     build_concept: [
-      { step: 1, title: 'String comparisons use single quotes', body: "In SQL, text values (strings) are wrapped in single quotes: city = 'City1'" },
-      { step: 2, title: 'Full query', body: "SELECT first_name, last_name, email FROM customers WHERE city = 'City1'" },
+      { step: 1, title: 'String comparisons use single quotes', body: "In SQL, text values (strings) are wrapped in single quotes: city = 'Chicago'" },
+      { step: 2, title: 'Full query', body: "SELECT first_name, last_name, email FROM customers WHERE city = 'Chicago'" },
     ],
   },
   {
