@@ -127,15 +127,21 @@ const startServer = async () => {
   (async () => {
     try {
       await testConnection();
-      logger.info('DB connected — running seed check...');
+      logger.info('DB connected — running seed...');
 
       const { spawnSync } = await import('child_process');
-      const result = spawnSync('node', ['./scripts/run-seed-safe.cjs'], {
-        stdio: 'inherit',
-        env: process.env,
-      });
+      const isProd = process.env.NODE_ENV === 'production';
+
+      // Production: always wipe + reseed (guarantees fresh data on every deploy).
+      // Dev: safe check — skip seed if data already exists (faster restarts).
+      const seedArgs = isProd
+        ? ['dist/scripts/seed.js']
+        : ['./scripts/run-seed-safe.cjs'];
+
+      logger.info(`Seed mode: ${isProd ? 'full (production)' : 'safe-check (dev)'}`);
+      const result = spawnSync('node', seedArgs, { stdio: 'inherit', env: process.env });
       if (result.status !== 0) {
-        logger.warn('Seed check exited non-zero — continuing anyway');
+        logger.warn('Seed exited non-zero — continuing anyway');
       }
 
       await questionStore.load();
