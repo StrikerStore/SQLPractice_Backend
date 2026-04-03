@@ -1,106 +1,176 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { z } from 'zod';
+import { RowDataPacket } from 'mysql2/promise';
+import { db } from '../db.js';
 import pino from 'pino';
 
 const logger = pino();
 
-// ─── Zod schema for a single question ────────────────────────────────────────
-const QuestionSchema = z.object({
-  id: z.string().min(1).max(16),
-  db: z.string().min(1).max(64),
-  title: z.string().min(1).max(200),
-  topic: z.string().min(1).max(100),
-  difficulty: z.enum(['easy', 'medium', 'hard']),
-  prompt: z.string().min(1).max(5000),
-  hint: z.string().min(1).max(2000),
-  canonicalSql: z.string().min(1).max(50_000),
-  starterSql: z.string().max(50_000).optional(),
-});
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-export type Question = z.infer<typeof QuestionSchema>;
+export interface Level {
+  level_id: number;
+  sort_order: number;
+  slug: string;
+  title: string;
+  description: string;
+  syntax: string;
+  patterns: string;
+  tips: string;
+  question_count?: number;
+}
 
-// Public-facing question (never exposes canonicalSql)
-export type PublicQuestion = Omit<Question, 'canonicalSql'>;
+export interface BuildConceptStep {
+  step: number;
+  title: string;
+  body: string;
+}
+
+export interface Question {
+  id: string;
+  level_id: number;
+  sort_order: number;
+  db: string;
+  title: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  prompt: string;
+  hint: string;
+  canonical_sql: string;
+  starter_sql: string | null;
+  build_concept: BuildConceptStep[];
+}
+
+// Public-facing question (never exposes canonical_sql)
+export type PublicQuestion = Omit<Question, 'canonical_sql'>;
+
+// ─── Row types for mysql2 ─────────────────────────────────────────────────────
+
+interface LevelRow extends RowDataPacket {
+  level_id: number;
+  sort_order: number;
+  slug: string;
+  title: string;
+  description: string;
+  syntax: string;
+  patterns: string;
+  tips: string;
+}
+
+interface QuestionRow extends RowDataPacket {
+  id: string;
+  level_id: number;
+  sort_order: number;
+  db: string;
+  title: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  prompt: string;
+  hint: string;
+  canonical_sql: string;
+  starter_sql: string | null;
+  build_concept: string; // JSON string from MySQL
+}
 
 // ─── QuestionStore singleton ──────────────────────────────────────────────────
+
 class QuestionStore {
   private questions: Question[] = [];
-  private readonly questionsDir = path.join(process.cwd(), 'src/content/questions');
+  private levels: Level[] = [];
 
-  load(): void {
-    const loaded: Question[] = [];
-    const seenIds = new Set<string>();
+  async load(): Promise<void> {
+    let connection;
+    try {
+      connection = await db.getConnection();
 
-    const files = fs.readdirSync(this.questionsDir).filter((f) => f.endsWith('.json'));
+      // Load levels
+      const [levelRows] = await connection.query<LevelRow[]>(
+        'SELECT * FROM sql_practice.levels ORDER BY sort_order',
+      );
+      this.levels = levelRows.map((r) => ({
+        level_id: r.level_id,
+        sort_order: r.sort_order,
+        slug: r.slug,
+        title: r.title,
+        description: r.description,
+        syntax: r.syntax,
+        patterns: r.patterns,
+        tips: r.tips,
+      }));
 
-    for (const file of files) {
-      const filePath = path.join(this.questionsDir, file);
-      try {
-        const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-        if (!Array.isArray(raw)) {
-          logger.warn({ file }, 'Question file is not an array — skipping');
-          continue;
-        }
-        for (const item of raw) {
-          const parsed = QuestionSchema.safeParse(item);
-          if (!parsed.success) {
-            logger.warn({ file, id: item?.id, errors: parsed.error.flatten() }, 'Invalid question — skipping');
-            continue;
-          }
-          if (seenIds.has(parsed.data.id)) {
-            logger.warn({ id: parsed.data.id }, 'Duplicate question ID — skipping');
-            continue;
-          }
-          seenIds.add(parsed.data.id);
-          loaded.push(parsed.data);
-        }
-      } catch (err) {
-        logger.error({ err, file }, 'Failed to load question file');
-      }
+      // Load questions
+      const [questionRows] = await connection.query<QuestionRow[]>(
+        'SELECT * FROM sql_practice.questions ORDER BY level_id, sort_order',
+      );
+      this.questions = questionRows.map((r) => ({
+        id: r.id,
+        level_id: r.level_id,
+        sort_order: r.sort_order,
+        db: r.db,
+        title: r.title,
+        difficulty: r.difficulty,
+        prompt: r.prompt,
+        hint: r.hint,
+        canonical_sql: r.canonical_sql,
+        starter_sql: r.starter_sql,
+        build_concept: typeof r.build_concept === 'string'
+          ? JSON.parse(r.build_concept)
+          : (r.build_concept as unknown as BuildConceptStep[]),
+      }));
+
+      logger.info(`QuestionStore loaded ${this.questions.length} questions across ${this.levels.length} levels`);
+    } catch (err) {
+      logger.error({ err }, 'QuestionStore.load() failed');
+      throw err;
+    } finally {
+      if (connection) connection.release();
     }
-
-    this.questions = loaded;
-    logger.info(`QuestionStore loaded ${loaded.length} questions from ${files.length} files`);
   }
 
-  /** Reload from disk without restarting the server */
-  reload(): void {
-    this.load();
+  /** All levels with question counts */
+  getLevels(): (Level & { question_count: number })[] {
+    return this.levels.map((lvl) => ({
+      ...lvl,
+      question_count: this.questions.filter((q) => q.level_id === lvl.level_id).length,
+    }));
   }
 
-  /** All questions, stripped of canonicalSql (safe for frontend) */
-  getAll(): PublicQuestion[] {
-    return this.questions.map(({ canonicalSql: _omit, ...q }) => q);
+  /** Single level by ID */
+  getLevelById(levelId: number): Level | undefined {
+    return this.levels.find((l) => l.level_id === levelId);
   }
 
-  /** Questions filtered by db / difficulty / topic */
-  query(filters: { db?: string; difficulty?: string; topic?: string }): PublicQuestion[] {
-    return this.getAll().filter((q) => {
-      if (filters.db && q.db !== filters.db) return false;
-      if (filters.difficulty && q.difficulty !== filters.difficulty) return false;
-      if (filters.topic && q.topic !== filters.topic) return false;
-      return true;
-    });
+  /** All public questions (no canonical_sql) optionally filtered */
+  getAll(filters: { db?: string; difficulty?: string; level?: number } = {}): PublicQuestion[] {
+    return this.questions
+      .filter((q) => {
+        if (filters.db && q.db !== filters.db) return false;
+        if (filters.difficulty && q.difficulty !== filters.difficulty) return false;
+        if (filters.level && q.level_id !== filters.level) return false;
+        return true;
+      })
+      .map(({ canonical_sql: _omit, ...pub }) => pub);
   }
 
-  /** Public question by ID (no canonicalSql) */
+  /** Questions grouped by level */
+  getByLevel(levelId: number): PublicQuestion[] {
+    return this.questions
+      .filter((q) => q.level_id === levelId)
+      .map(({ canonical_sql: _omit, ...pub }) => pub);
+  }
+
+  /** Single public question by ID */
   getById(id: string): PublicQuestion | undefined {
     const q = this.questions.find((q) => q.id === id);
     if (!q) return undefined;
-    const { canonicalSql: _omit, ...pub } = q;
+    const { canonical_sql: _omit, ...pub } = q;
     return pub;
   }
 
-  /** Canonical SQL — server-side use ONLY. Never send to frontend. */
-  getCanonicalSql(id: string): string | undefined {
-    return this.questions.find((q) => q.id === id)?.canonicalSql;
+  /** Build concept steps for a question */
+  getBuildConcept(id: string): BuildConceptStep[] | undefined {
+    return this.questions.find((q) => q.id === id)?.build_concept;
   }
 
-  /** Distinct topic list (for filter dropdowns) */
-  getTopics(): string[] {
-    return [...new Set(this.questions.map((q) => q.topic))].sort();
+  /** Canonical SQL — server-side ONLY. Never send to frontend. */
+  getCanonicalSql(id: string): string | undefined {
+    return this.questions.find((q) => q.id === id)?.canonical_sql;
   }
 
   /** Distinct database list */

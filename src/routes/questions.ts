@@ -13,6 +13,14 @@ const questionListLimiter = rateLimit({
   message: { error: 'Too many requests — please slow down.' },
 });
 
+const buildConceptLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many build-concept requests — slow down.' },
+});
+
 const solutionLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
@@ -30,45 +38,84 @@ function safeStr(val: unknown): string | undefined {
   return val.trim() || undefined;
 }
 
+function safeInt(val: unknown): number | undefined {
+  const n = Number(val);
+  return Number.isInteger(n) && n > 0 ? n : undefined;
+}
+
+/**
+ * GET /api/questions/levels
+ * Returns all curriculum levels with question counts.
+ */
+router.get('/levels', questionListLimiter, (_req: Request, res: Response) => {
+  const levels = questionStore.getLevels();
+  res.json({ count: levels.length, levels });
+});
+
+/**
+ * GET /api/questions/levels/:levelId
+ * Returns a single level's learning content plus its questions.
+ */
+router.get('/levels/:levelId', questionListLimiter, (req: Request, res: Response) => {
+  const levelId = safeInt(req.params.levelId);
+  if (!levelId) {
+    res.status(400).json({ error: 'Invalid level ID.' });
+    return;
+  }
+  const level = questionStore.getLevelById(levelId);
+  if (!level) {
+    res.status(404).json({ error: `Level ${levelId} not found.` });
+    return;
+  }
+  const questions = questionStore.getByLevel(levelId);
+  res.json({ level, questions });
+});
+
 /**
  * GET /api/questions
- * Returns all questions (public fields only — canonicalSql is NEVER included).
- * Supports optional query params: db, difficulty, topic
+ * Returns all questions (public fields only — canonical_sql is NEVER included).
+ * Supports optional query params: db, difficulty, level
  */
 router.get('/', questionListLimiter, (req: Request, res: Response) => {
   const db = safeStr(req.query.db);
-  const topic = safeStr(req.query.topic);
   const rawDiff = safeStr(req.query.difficulty);
   const difficulty = rawDiff && VALID_DIFFICULTIES.has(rawDiff) ? rawDiff : undefined;
+  const level = safeInt(req.query.level);
 
-  const questions = questionStore.query({ db, difficulty, topic });
+  const questions = questionStore.getAll({ db, difficulty, level });
   res.json({
     count: questions.length,
     filters: {
       databases: questionStore.getDatabases(),
-      topics: questionStore.getTopics(),
+      levels: questionStore.getLevels().map((l) => ({ level_id: l.level_id, slug: l.slug, title: l.title })),
     },
     questions,
   });
 });
 
 /**
- * GET /api/questions/meta
- * Returns filter metadata: list of databases and topics.
+ * GET /api/questions/:id/build-concept
+ * Returns the step-by-step thinking guide for a question.
+ * Rate-limited to prevent bulk harvesting.
  */
-router.get('/meta', questionListLimiter, (_req: Request, res: Response) => {
-  res.json({
-    databases: questionStore.getDatabases(),
-    topics: questionStore.getTopics(),
-    count: questionStore.count,
-  });
+router.get('/:id/build-concept', buildConceptLimiter, (req: Request, res: Response) => {
+  const id = req.params.id;
+  if (!ID_RE.test(id)) {
+    res.status(400).json({ error: 'Invalid question ID.' });
+    return;
+  }
+  const steps = questionStore.getBuildConcept(id);
+  if (!steps) {
+    res.status(404).json({ error: `Question "${id}" not found.` });
+    return;
+  }
+  res.json({ questionId: id, steps });
 });
 
 /**
  * GET /api/questions/:id/solution
  * Returns the canonical SQL for a question.
  * Rate-limited (20 req/min) to prevent bulk harvesting of answers.
- * The UI enforces an additional attempt gate (2 wrong tries).
  */
 router.get('/:id/solution', solutionLimiter, (req: Request, res: Response) => {
   const id = req.params.id;
@@ -86,7 +133,7 @@ router.get('/:id/solution', solutionLimiter, (req: Request, res: Response) => {
 
 /**
  * GET /api/questions/:id
- * Returns a single question by ID (public fields only — no canonicalSql).
+ * Returns a single question by ID (public fields only — no canonical_sql).
  */
 router.get('/:id', questionListLimiter, (req: Request, res: Response) => {
   const id = req.params.id;
@@ -100,24 +147,6 @@ router.get('/:id', questionListLimiter, (req: Request, res: Response) => {
     return;
   }
   res.json(question);
-});
-
-/**
- * POST /api/questions/reload
- * Hot-reloads all question JSON files without restarting the server.
- * Guarded by ADMIN_KEY env var — for content updates on Railway only.
- */
-router.post('/reload', (req: Request, res: Response) => {
-  const adminKey = process.env.ADMIN_KEY?.trim();
-  const providedKey = (req.headers['x-admin-key'] as string | undefined)?.trim();
-
-  if (!adminKey || providedKey !== adminKey) {
-    res.status(403).json({ error: 'Forbidden.' });
-    return;
-  }
-
-  questionStore.reload();
-  res.json({ reloaded: true, count: questionStore.count });
 });
 
 export default router;

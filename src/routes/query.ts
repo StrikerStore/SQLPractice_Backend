@@ -13,7 +13,7 @@ const parser = new Parser();
 const MYSQL_PARSER_OPT = { database: 'MySQL' } as const;
 
 // Strict allowlist — prevents switching into arbitrary schemas via API
-const ALLOWED_DATABASES = new Set(['retail', 'hr', 'flights', 'analytics', 'finance']);
+const ALLOWED_DATABASES = new Set(['retail', 'hr']);
 
 const MAX_ROWS_RETURNED = 2000;
 const QUERY_TIMEOUT_MS = 5000;

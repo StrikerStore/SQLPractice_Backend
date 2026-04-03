@@ -6,7 +6,7 @@ import pino from 'pino';
 const logger = pino();
 
 // Safe list of allowed schema names to prevent injection via URL param
-const ALLOWED_SCHEMAS = new Set(['retail', 'hr', 'flights', 'analytics', 'finance']);
+const ALLOWED_SCHEMAS = new Set(['retail', 'hr']);
 
 interface TableRow extends RowDataPacket {
   TABLE_NAME: string;

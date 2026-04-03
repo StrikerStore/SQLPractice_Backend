@@ -1,10 +1,10 @@
 /**
- * Seeds 5 databases (retail, hr, flights, analytics, finance).
- * Each has ≥5 tables; main fact table per DB has 3500 rows.
- * Run: npm run seed  (from backend/)
+ * Seeds databases: retail + hr (practice datasets) + sql_practice (curriculum meta).
+ * Run: npm run seed:dev  (from backend/)
  */
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+import { LEVELS, QUESTIONS } from './seed-questions.js';
 
 dotenv.config();
 
@@ -279,305 +279,65 @@ async function seed() {
     }
     await chunkInsert(conn, 'dept_manager', ['dept_no', 'emp_no', 'from_date', 'to_date'], dm);
 
-    // ========== FLIGHTS ==========
-    await conn.query('CREATE DATABASE IF NOT EXISTS flights');
-    await conn.query('USE flights');
-    await conn.query('DROP TABLE IF EXISTS flights');
-    await conn.query('DROP TABLE IF EXISTS routes');
-    await conn.query('DROP TABLE IF EXISTS aircraft');
-    await conn.query('DROP TABLE IF EXISTS airports');
-    await conn.query('DROP TABLE IF EXISTS airlines');
+    // ========== SQL_PRACTICE (curriculum meta) ==========
+    await conn.query('CREATE DATABASE IF NOT EXISTS sql_practice');
+    await conn.query('USE sql_practice');
+
+    await conn.query('DROP TABLE IF EXISTS questions');
+    await conn.query('DROP TABLE IF EXISTS levels');
 
     await conn.query(`
-      CREATE TABLE airlines (
-        carrier VARCHAR(10) PRIMARY KEY,
-        name VARCHAR(120) NOT NULL
-      )`);
-    await conn.query(`
-      CREATE TABLE airports (
-        faa VARCHAR(3) PRIMARY KEY,
-        name VARCHAR(120) NOT NULL,
-        lat DECIMAL(9,4),
-        lon DECIMAL(9,4)
-      )`);
-    await conn.query(`
-      CREATE TABLE aircraft (
-        tail VARCHAR(10) PRIMARY KEY,
-        carrier VARCHAR(10) NOT NULL,
-        model VARCHAR(60) NOT NULL
-      )`);
-    await conn.query(`
-      CREATE TABLE routes (
-        route_id INT PRIMARY KEY,
-        origin VARCHAR(3) NOT NULL,
-        dest VARCHAR(3) NOT NULL,
-        miles INT NOT NULL
-      )`);
-    await conn.query(`
-      CREATE TABLE flights (
-        flight_id INT PRIMARY KEY,
-        carrier VARCHAR(10) NOT NULL,
-        origin VARCHAR(3) NOT NULL,
-        dest VARCHAR(3) NOT NULL,
-        air_time INT NOT NULL,
-        dep_ts DATETIME NOT NULL,
-        route_id INT,
-        INDEX idx_carrier_time (carrier, dep_ts),
-        INDEX idx_origin (origin)
+      CREATE TABLE levels (
+        level_id    INT PRIMARY KEY,
+        sort_order  INT NOT NULL UNIQUE,
+        slug        VARCHAR(40) NOT NULL UNIQUE,
+        title       VARCHAR(120) NOT NULL,
+        description TEXT NOT NULL,
+        syntax      TEXT NOT NULL,
+        patterns    TEXT NOT NULL,
+        tips        TEXT NOT NULL
       )`);
 
-    const carriers: unknown[][] = [
-      ['AA', 'Alpha Air'],
-      ['DL', 'Delta Lite'],
-    ];
-    for (let i = 2; i < 25; i++) carriers.push([`X${i}`, `Airline ${i}`]);
-    await chunkInsert(conn, 'airlines', ['carrier', 'name'], carriers);
+    await conn.query(`
+      CREATE TABLE questions (
+        id            VARCHAR(16) PRIMARY KEY,
+        level_id      INT NOT NULL,
+        sort_order    INT NOT NULL,
+        db            VARCHAR(64) NOT NULL,
+        title         VARCHAR(200) NOT NULL,
+        difficulty    ENUM('easy','medium','hard') NOT NULL,
+        prompt        TEXT NOT NULL,
+        hint          TEXT NOT NULL,
+        canonical_sql TEXT NOT NULL,
+        starter_sql   TEXT DEFAULT NULL,
+        build_concept JSON NOT NULL,
+        UNIQUE KEY uq_level_order (level_id, sort_order),
+        FOREIGN KEY (level_id) REFERENCES levels(level_id)
+      )`);
 
-    const aps: unknown[][] = [];
-    for (let i = 0; i < 30; i++) {
-      const faa = String(i).padStart(3, '0');
-      aps.push([faa, `Airport ${i}`, 40 + i * 0.1, -70 - i * 0.1]);
+    // Seed levels
+    for (const lvl of LEVELS) {
+      await conn.query(
+        `INSERT INTO levels (level_id, sort_order, slug, title, description, syntax, patterns, tips)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [lvl.level_id, lvl.sort_order, lvl.slug, lvl.title, lvl.description, lvl.syntax, lvl.patterns, lvl.tips],
+      );
     }
-    await chunkInsert(conn, 'airports', ['faa', 'name', 'lat', 'lon'], aps);
+    console.log(`  ✓ Seeded ${LEVELS.length} levels`);
 
-    const ac: unknown[][] = [];
-    for (let i = 0; i < 50; i++) {
-      ac.push([`N${String(i).padStart(4, '0')}`, i % 2 === 0 ? 'AA' : 'DL', 'B737']);
+    // Seed questions
+    for (const q of QUESTIONS) {
+      await conn.query(
+        `INSERT INTO questions (id, level_id, sort_order, db, title, difficulty, prompt, hint, canonical_sql, starter_sql, build_concept)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [q.id, q.level_id, q.sort_order, q.db, q.title, q.difficulty, q.prompt, q.hint, q.canonical_sql, q.starter_sql, JSON.stringify(q.build_concept)],
+      );
     }
-    await chunkInsert(conn, 'aircraft', ['tail', 'carrier', 'model'], ac);
-
-    const rt: unknown[][] = [];
-    for (let r = 1; r <= 100; r++) {
-      const o = String((r * 3) % 30).padStart(3, '0');
-      const d = String((r * 7) % 30).padStart(3, '0');
-      rt.push([r, o, d, 500 + (r % 2000)]);
-    }
-    await chunkInsert(conn, 'routes', ['route_id', 'origin', 'dest', 'miles'], rt);
-
-    const fl: unknown[][] = [];
-    for (let fid = 1; fid <= 3500; fid++) {
-      const car = fid <= 2300 ? 'AA' : 'DL';
-      const o = String((fid * 11) % 30).padStart(3, '0');
-      const dst = String((fid * 13) % 30).padStart(3, '0');
-      const at = fid === 1 ? 700 : 60 + (fid % 400);
-      let dep: Date;
-      if (car === 'DL' && fid > 2300) {
-        dep = new Date(Date.UTC(2024, (fid % 5), 1 + (fid % 26), 14, 0, 0));
-      } else {
-        dep = new Date(Date.UTC(2024, (fid % 12), 1 + (fid % 27), 10, 0, 0));
-      }
-      const depStr = dep.toISOString().slice(0, 19).replace('T', ' ');
-      fl.push([fid, car, o, dst, at, depStr, 1 + (fid % 100)]);
-    }
-    await chunkInsert(
-      conn,
-      'flights',
-      ['flight_id', 'carrier', 'origin', 'dest', 'air_time', 'dep_ts', 'route_id'],
-      fl,
-    );
-
-    // ========== ANALYTICS ==========
-    await conn.query('CREATE DATABASE IF NOT EXISTS analytics');
-    await conn.query('USE analytics');
-    await conn.query('DROP TABLE IF EXISTS page_views');
-    await conn.query('DROP TABLE IF EXISTS sessions');
-    await conn.query('DROP TABLE IF EXISTS campaigns');
-    await conn.query('DROP TABLE IF EXISTS dim_source');
-    await conn.query('DROP TABLE IF EXISTS users');
-
-    await conn.query(`
-      CREATE TABLE dim_source (
-        source_id INT PRIMARY KEY,
-        name VARCHAR(80) NOT NULL
-      )`);
-    await conn.query(`
-      CREATE TABLE campaigns (
-        campaign_id INT PRIMARY KEY,
-        name VARCHAR(120) NOT NULL,
-        source_id INT NOT NULL
-      )`);
-    await conn.query(`
-      CREATE TABLE users (
-        user_id INT PRIMARY KEY,
-        country VARCHAR(60) NOT NULL,
-        signup_ts DATETIME NOT NULL
-      )`);
-    await conn.query(`
-      CREATE TABLE sessions (
-        session_id BIGINT PRIMARY KEY,
-        user_id INT NOT NULL,
-        campaign_id INT,
-        started_at DATETIME NOT NULL,
-        INDEX idx_user (user_id)
-      )`);
-    await conn.query(`
-      CREATE TABLE page_views (
-        view_id BIGINT PRIMARY KEY,
-        session_id BIGINT NOT NULL,
-        user_id INT NOT NULL,
-        page_path VARCHAR(200) NOT NULL,
-        view_ts DATETIME NOT NULL,
-        INDEX idx_user_path (user_id, page_path, view_ts)
-      )`);
-
-    const srcs: unknown[][] = [];
-    for (let s = 1; s <= 10; s++) srcs.push([s, `Source ${s}`]);
-    await chunkInsert(conn, 'dim_source', ['source_id', 'name'], srcs);
-
-    const camps: unknown[][] = [];
-    for (let c = 1; c <= 20; c++) camps.push([c, `Camp ${c}`, 1 + (c % 10)]);
-    await chunkInsert(conn, 'campaigns', ['campaign_id', 'name', 'source_id'], camps);
-
-    const users: unknown[][] = [];
-    for (let u = 1; u <= 200; u++) {
-      const country = u <= 120 ? 'US' : u <= 160 ? 'UK' : 'DE';
-      users.push([u, country, '2023-01-01 00:00:00']);
-    }
-    await chunkInsert(conn, 'users', ['user_id', 'country', 'signup_ts'], users);
-
-    const sess: unknown[][] = [];
-    for (let s = 1; s <= 2500; s++) {
-      const uid = 1 + (s % 200);
-      sess.push([BigInt(100000 + s), uid, 1 + (s % 20), '2024-01-01 12:00:00']);
-    }
-    await chunkInsert(conn, 'sessions', ['session_id', 'user_id', 'campaign_id', 'started_at'], sess);
-
-    const pv: unknown[][] = [];
-    let vid = 1;
-    const r2 = mulberry32(777);
-    for (let k = 0; k < 3500; k++) {
-      let uid: number;
-      if (k < 2100) uid = 1 + (k % 120);
-      else uid = 1 + Math.floor(r2() * 200);
-      const sid = BigInt(100000 + ((k * 17) % 2500) + 1);
-      const path = k % 11 === 0 ? '/checkout' : k % 5 === 0 ? '/home' : '/product';
-      const ts = new Date(Date.UTC(2024, k % 12, 1 + (k % 27), 12, 0, 0));
-      if (k < 8) {
-        pv.push([vid++, sid, 50, '/checkout', '2024-03-15 10:00:00']);
-        continue;
-      }
-      pv.push([vid++, sid, uid, path, ts.toISOString().slice(0, 19).replace('T', ' ')]);
-    }
-    await chunkInsert(
-      conn,
-      'page_views',
-      ['view_id', 'session_id', 'user_id', 'page_path', 'view_ts'],
-      pv,
-    );
-
-    // ========== FINANCE ==========
-    await conn.query('CREATE DATABASE IF NOT EXISTS finance');
-    await conn.query('USE finance');
-    await conn.query('DROP TABLE IF EXISTS transactions');
-    await conn.query('DROP TABLE IF EXISTS accounts');
-    await conn.query('DROP TABLE IF EXISTS products');
-    await conn.query('DROP TABLE IF EXISTS customers_fin');
-    await conn.query('DROP TABLE IF EXISTS branches');
-    await conn.query('DROP TABLE IF EXISTS fx_rates');
-
-    await conn.query(`
-      CREATE TABLE branches (
-        branch_id INT PRIMARY KEY,
-        city VARCHAR(80) NOT NULL
-      )`);
-    await conn.query(`
-      CREATE TABLE customers_fin (
-        customer_id INT PRIMARY KEY,
-        name VARCHAR(120) NOT NULL,
-        segment VARCHAR(40) NOT NULL
-      )`);
-    await conn.query(`
-      CREATE TABLE products (
-        product_id INT PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        rate_annual DECIMAL(6,4) NOT NULL
-      )`);
-    await conn.query(`
-      CREATE TABLE accounts (
-        account_id INT PRIMARY KEY,
-        customer_id INT NOT NULL,
-        branch_id INT NOT NULL,
-        account_type VARCHAR(20) NOT NULL,
-        balance DECIMAL(14,2) NOT NULL,
-        INDEX idx_type (account_type)
-      )`);
-    await conn.query(`
-      CREATE TABLE transactions (
-        txn_id BIGINT PRIMARY KEY,
-        account_id INT NOT NULL,
-        amount DECIMAL(14,2) NOT NULL,
-        txn_type VARCHAR(10) NOT NULL,
-        posted_at DATETIME NOT NULL,
-        INDEX idx_acct_time (account_id, posted_at)
-      )`);
-    await conn.query(`
-      CREATE TABLE fx_rates (
-        ccy VARCHAR(3) PRIMARY KEY,
-        usd_rate DECIMAL(10,6) NOT NULL
-      )`);
-
-    const br: unknown[][] = [];
-    for (let b = 1; b <= 25; b++) br.push([b, `City ${b}`]);
-    await chunkInsert(conn, 'branches', ['branch_id', 'city'], br);
-
-    const cf: unknown[][] = [];
-    for (let c = 1; c <= 800; c++) cf.push([c, `Cust ${c}`, c % 3 === 0 ? 'RETAIL' : 'SMB']);
-    await chunkInsert(conn, 'customers_fin', ['customer_id', 'name', 'segment'], cf);
-
-    const pr: unknown[][] = [];
-    for (let p = 1; p <= 30; p++) pr.push([p, `Loan ${p}`, 0.05 + (p % 10) * 0.001]);
-    await chunkInsert(conn, 'products', ['product_id', 'name', 'rate_annual'], pr);
-
-    const acc: unknown[][] = [];
-    for (let a = 1; a <= 500; a++) {
-      const typ = a % 3 === 0 ? 'CHECKING' : a % 3 === 1 ? 'SAVINGS' : 'LOAN';
-      acc.push([a, 1 + (a % 800), 1 + (a % 25), typ, -10000 + (a * 137) % 20000]);
-    }
-    await chunkInsert(
-      conn,
-      'accounts',
-      ['account_id', 'customer_id', 'branch_id', 'account_type', 'balance'],
-      acc,
-    );
-
-    const fx: unknown[][] = [
-      ['USD', 1],
-      ['EUR', 1.08],
-    ];
-    await chunkInsert(conn, 'fx_rates', ['ccy', 'usd_rate'], fx);
-
-    const tx: unknown[][] = [];
-    let tid = 1;
-    for (let i = 0; i < 3460; i++) {
-      const aid = 101 + (i % 399);
-      const amt = (i % 2 === 0 ? 1 : -1) * (10 + (i % 500));
-      const typ = amt < 0 ? 'DEBIT' : 'CREDIT';
-      const dt = new Date(Date.UTC(2024, i % 12, 1 + (i % 28), 9, 0, 0));
-      tx.push([tid++, aid, amt, typ, dt.toISOString().slice(0, 19).replace('T', ' ')]);
-    }
-    for (let i = 1; i <= 20; i++) {
-      tx.push([
-        tid++,
-        100,
-        i % 2 === 0 ? 100 : -40,
-        i % 2 === 0 ? 'CREDIT' : 'DEBIT',
-        `2024-${String(1 + (i % 9)).padStart(2, '0')}-${String((i % 27) + 1).padStart(2, '0')} 10:00:00`,
-      ]);
-    }
-    for (let j = 0; j < 20; j++) {
-      tx.push([
-        tid++,
-        200,
-        -30 - j,
-        'DEBIT',
-        `2024-06-${String(1 + (j % 28)).padStart(2, '0')} 14:00:00`,
-      ]);
-    }
-    await chunkInsert(conn, 'transactions', ['txn_id', 'account_id', 'amount', 'txn_type', 'posted_at'], tx);
+    console.log(`  ✓ Seeded ${QUESTIONS.length} questions`);
 
     await conn.query('SET FOREIGN_KEY_CHECKS=1');
 
-    console.log('Seed complete: retail, hr, flights, analytics, finance (3500-row fact tables).');
+    console.log('Seed complete: retail, hr (3500-row fact tables) + sql_practice curriculum DB.');
     process.exit(0);
   } catch (err) {
     console.error(err);
