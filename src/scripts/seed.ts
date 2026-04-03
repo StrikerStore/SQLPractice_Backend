@@ -367,7 +367,26 @@ async function seed() {
     console.log(`  ✓ Seeded ${QUESTIONS.length} questions`);
 
     await conn.query('SET FOREIGN_KEY_CHECKS=1');
-    console.log('Seed complete: retail, hr, sql_practice ✓');
+
+    // ========== LEARNMYCODE (users — NEVER DROPPED) ==========
+    // This block only creates the database and table if they don't exist.
+    // User accounts must survive every redeployment.
+    await conn.query('CREATE DATABASE IF NOT EXISTS learnmycode');
+    await conn.query(`CREATE TABLE IF NOT EXISTS learnmycode.users (
+      user_id       INT AUTO_INCREMENT PRIMARY KEY,
+      full_name     VARCHAR(100) NOT NULL,
+      email         VARCHAR(150) NOT NULL UNIQUE,
+      contact       VARCHAR(20)  NOT NULL,
+      city          VARCHAR(80)  NOT NULL,
+      course        VARCHAR(80)  NOT NULL,
+      college       VARCHAR(150) DEFAULT NULL,
+      password_hash VARCHAR(72)  NOT NULL,
+      created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_email (email)
+    )`);
+    console.log('  ✓ learnmycode.users table ready (preserved across deploys)');
+
+    console.log('Seed complete: retail, hr, sql_practice, learnmycode ✓');
     process.exit(0);
   } catch (err) {
     console.error(err);

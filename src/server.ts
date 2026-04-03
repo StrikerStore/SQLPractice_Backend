@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { executeQuery, explainQuery } from './routes/query.js';
 import { getSchema } from './routes/schema.js';
 import questionsRouter from './routes/questions.js';
+import authRouter from './routes/auth.js';
 import { testConnection } from './db.js';
 import { questionStore } from './lib/QuestionStore.js';
 
@@ -99,6 +100,7 @@ app.post('/api/query',      apiLimiter,    executeQuery);
 app.post('/api/explain',    apiLimiter,    explainQuery);
 app.get( '/api/schema/:id', schemaLimiter, getSchema);
 app.use( '/api/questions',  questionsRouter);
+app.use( '/api/auth',       authRouter);
 
 // ─── 404 catch-all ───────────────────────────────────────────────────────────
 app.use((_req, res) => {
