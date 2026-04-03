@@ -91,7 +91,12 @@ app.disable('x-powered-by');
 
 // ─── Health endpoint (no auth needed) ───────────────────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', ts: new Date().toISOString(), questions: questionStore.count });
+  const loaded = questionStore.count > 0;
+  res.status(loaded ? 200 : 503).json({
+    status: loaded ? 'ok' : 'degraded',
+    ts: new Date().toISOString(),
+    questions: questionStore.count,
+  });
 });
 
 // ─── API Routes ──────────────────────────────────────────────────────────────
@@ -114,8 +119,16 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 const PORT = Number(process.env.PORT) || 3001;
 
 const startServer = async () => {
-  await testConnection();
-  await questionStore.load();
+  try {
+    await testConnection();
+  } catch (err) {
+    logger.warn({ err }, 'DB connection failed at startup — server will start in degraded mode');
+  }
+  try {
+    await questionStore.load();
+  } catch (err) {
+    logger.warn({ err }, 'QuestionStore failed to load — server will start in degraded mode');
+  }
   app.listen(PORT, '0.0.0.0', () => {
     logger.info(`Server listening on 0.0.0.0:${PORT} — ${questionStore.count} questions loaded`);
   });

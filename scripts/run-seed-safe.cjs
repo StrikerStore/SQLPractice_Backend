@@ -4,11 +4,9 @@ const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 const REQUIRED_DATASETS = [
-  { db: 'retail', table: 'orders', minRows: 3000 },
-  { db: 'hr', table: 'salaries', minRows: 3000 },
-  { db: 'flights', table: 'flights', minRows: 3000 },
-  { db: 'analytics', table: 'page_views', minRows: 3000 },
-  { db: 'finance', table: 'transactions', minRows: 3000 },
+  { db: 'retail',       table: 'orders',    minRows: 3000 },
+  { db: 'hr',           table: 'salaries',  minRows: 3000 },
+  { db: 'sql_practice', table: 'questions', minRows: 100  },
 ];
 
 async function needsSeed(connection) {
