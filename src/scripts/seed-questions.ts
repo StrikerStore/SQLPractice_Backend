@@ -1,5 +1,5 @@
 /**
- * Curriculum content: 10 levels × 12 questions = 120 questions
+ * Curriculum content: 10 levels × 14 questions = 140 questions
  * Levels follow a progressive SQL learning path.
  * Each question has build_concept steps to guide learners' thinking.
  */
@@ -1674,6 +1674,266 @@ export const QUESTIONS: QuestionData[] = [
       { step: 1, title: 'CTE: total current salary per department', body: "WITH dept_totals AS (SELECT de.dept_no, SUM(s.salary) AS total_salary FROM dept_emp de JOIN salaries s ON de.emp_no = s.emp_no WHERE de.to_date = '2099-01-01' AND s.to_date = '2099-01-01' GROUP BY de.dept_no)" },
       { step: 2, title: 'CUME_DIST returns fraction 0-1', body: 'CUME_DIST() OVER (ORDER BY total_salary) returns the fraction of rows with total_salary <= current row.' },
       { step: 3, title: 'Multiply by 100 for percentage', body: 'ROUND(100.0 * CUME_DIST() OVER (...), 1) gives percentage like 45.5.' },
+    ],
+  },
+
+  // ══════════════════════════════════════════════
+  // BONUS QUESTIONS (R07 / H07 per level)
+  // ══════════════════════════════════════════════
+
+  {
+    id: 'L01_R07', level_id: 1, sort_order: 13, db: 'retail', difficulty: 'easy',
+    title: 'Product names and category IDs',
+    prompt: 'Select `product_id`, `name`, and `category_id` from the `products` table.',
+    hint: 'List three column names after SELECT, then specify the table after FROM.',
+    canonical_sql: 'SELECT product_id, name, category_id FROM products',
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'Three columns from one table', body: 'All three columns live in products — no join needed.' },
+      { step: 2, title: 'Full query', body: 'SELECT product_id, name, category_id FROM products' },
+    ],
+  },
+  {
+    id: 'L01_H07', level_id: 1, sort_order: 14, db: 'hr', difficulty: 'easy',
+    title: 'Distinct department codes',
+    prompt: 'Return the distinct `dept_no` values from the `dept_emp` table (no duplicates).',
+    hint: 'Use SELECT DISTINCT on the dept_no column.',
+    canonical_sql: 'SELECT DISTINCT dept_no FROM dept_emp',
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'Many rows share the same dept_no', body: 'Each employee assignment repeats the department code — DISTINCT collapses them.' },
+      { step: 2, title: 'Full query', body: 'SELECT DISTINCT dept_no FROM dept_emp' },
+    ],
+  },
+
+  {
+    id: 'L02_R07', level_id: 2, sort_order: 13, db: 'retail', difficulty: 'easy',
+    title: 'Customers in cities starting with San',
+    prompt: "Find customers whose `city` starts with `'San'`. Return `first_name`, `last_name`, and `city`. Use `LIKE`.",
+    hint: "LIKE 'San%' — the % wildcard matches any characters after 'San'.",
+    canonical_sql: "SELECT first_name, last_name, city FROM customers WHERE city LIKE 'San%'",
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'Pattern matching with LIKE', body: "The % wildcard means 'any sequence of characters' after the prefix." },
+      { step: 2, title: 'Full query', body: "SELECT first_name, last_name, city FROM customers WHERE city LIKE 'San%'" },
+    ],
+  },
+  {
+    id: 'L02_H07', level_id: 2, sort_order: 14, db: 'hr', difficulty: 'easy',
+    title: 'Male or female employees hired in 2015',
+    prompt: "Return `emp_no`, `first_name`, `gender`, and `hire_date` for employees where `gender` is `'M'` OR `gender` is `'F'` AND `hire_date` is in 2015 (between `'2015-01-01'` and `'2015-12-31'`).",
+    hint: 'Use parentheses: WHERE (gender = \'M\' OR gender = \'F\') AND hire_date BETWEEN ...',
+    canonical_sql: "SELECT emp_no, first_name, gender, hire_date FROM employees WHERE (gender = 'M' OR gender = 'F') AND hire_date BETWEEN '2015-01-01' AND '2015-12-31'",
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'AND binds tighter than OR', body: 'Without parentheses, OR would apply before AND in unexpected ways. Group the OR condition first.' },
+      { step: 2, title: 'Full query', body: "SELECT emp_no, first_name, gender, hire_date FROM employees WHERE (gender = 'M' OR gender = 'F') AND hire_date BETWEEN '2015-01-01' AND '2015-12-31'" },
+    ],
+  },
+
+  {
+    id: 'L03_R07', level_id: 3, sort_order: 13, db: 'retail', difficulty: 'easy',
+    title: 'Second page of orders (OFFSET)',
+    prompt: 'Return `order_id` and `order_date` for the second page of 10 orders (skip the first 10, take the next 10). Sort by `order_date` descending.',
+    hint: 'ORDER BY order_date DESC LIMIT 10 OFFSET 10',
+    canonical_sql: 'SELECT order_id, order_date FROM orders ORDER BY order_date DESC LIMIT 10 OFFSET 10',
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'OFFSET skips rows', body: 'OFFSET 10 skips the first 10 rows after sorting; LIMIT 10 returns the next 10.' },
+      { step: 2, title: 'Full query', body: 'SELECT order_id, order_date FROM orders ORDER BY order_date DESC LIMIT 10 OFFSET 10' },
+    ],
+  },
+  {
+    id: 'L03_H07', level_id: 3, sort_order: 14, db: 'hr', difficulty: 'medium',
+    title: 'Employees sorted by last name, then first name',
+    prompt: 'List `emp_no`, `last_name`, and `first_name` from `employees`, sorted by `last_name` ascending, then `first_name` ascending. Limit 15.',
+    hint: 'ORDER BY last_name ASC, first_name ASC',
+    canonical_sql: 'SELECT emp_no, last_name, first_name FROM employees ORDER BY last_name ASC, first_name ASC LIMIT 15',
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'Multi-column sort', body: 'MySQL sorts by the first column; when values tie, it uses the second column.' },
+      { step: 2, title: 'Full query', body: 'SELECT emp_no, last_name, first_name FROM employees ORDER BY last_name ASC, first_name ASC LIMIT 15' },
+    ],
+  },
+
+  {
+    id: 'L04_R07', level_id: 4, sort_order: 13, db: 'retail', difficulty: 'easy',
+    title: 'Cheapest and most expensive product prices',
+    prompt: 'Find the minimum and maximum `list_price` across all products. Return columns `min_price` and `max_price`.',
+    hint: 'Use MIN(list_price) and MAX(list_price) in one SELECT.',
+    canonical_sql: 'SELECT MIN(list_price) AS min_price, MAX(list_price) AS max_price FROM products',
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'Multiple aggregates in one query', body: 'MIN and MAX can appear together — the whole table collapses to one row.' },
+      { step: 2, title: 'Full query', body: 'SELECT MIN(list_price) AS min_price, MAX(list_price) AS max_price FROM products' },
+    ],
+  },
+  {
+    id: 'L04_H07', level_id: 4, sort_order: 14, db: 'hr', difficulty: 'easy',
+    title: 'Count employees per department',
+    prompt: "Count how many current employees are in each department (`to_date = '2099-01-01'`). Return `dept_no` and `employee_count`.",
+    hint: 'SELECT dept_no, COUNT(*) FROM dept_emp WHERE to_date = ... GROUP BY dept_no',
+    canonical_sql: "SELECT dept_no, COUNT(*) AS employee_count FROM dept_emp WHERE to_date = '2099-01-01' GROUP BY dept_no",
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'Filter before aggregating', body: "WHERE to_date = '2099-01-01' keeps only current assignments." },
+      { step: 2, title: 'GROUP BY dept_no', body: 'COUNT(*) counts rows in each department group.' },
+      { step: 3, title: 'Full query', body: "SELECT dept_no, COUNT(*) AS employee_count FROM dept_emp WHERE to_date = '2099-01-01' GROUP BY dept_no" },
+    ],
+  },
+
+  {
+    id: 'L05_R07', level_id: 5, sort_order: 13, db: 'retail', difficulty: 'medium',
+    title: 'Order count and revenue by status',
+    prompt: 'For each `status` in `orders`, show the number of orders and total line-item revenue (join `order_items`). Return `status`, `order_count`, and `total_revenue`. Sort by total_revenue descending.',
+    hint: 'JOIN orders to order_items, GROUP BY status, COUNT(DISTINCT order_id), SUM(qty * paid_price).',
+    canonical_sql: 'SELECT o.status, COUNT(DISTINCT o.order_id) AS order_count, SUM(oi.qty * oi.paid_price) AS total_revenue FROM orders o JOIN order_items oi ON o.order_id = oi.order_id GROUP BY o.status ORDER BY total_revenue DESC',
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'Join to get line items', body: 'Revenue lives in order_items; status lives in orders.' },
+      { step: 2, title: 'GROUP BY status', body: 'COUNT(DISTINCT o.order_id) counts orders; SUM computes revenue per status group.' },
+      { step: 3, title: 'Full query', body: 'SELECT o.status, COUNT(DISTINCT o.order_id) AS order_count, SUM(oi.qty * oi.paid_price) AS total_revenue FROM orders o JOIN order_items oi ON o.order_id = oi.order_id GROUP BY o.status ORDER BY total_revenue DESC' },
+    ],
+  },
+  {
+    id: 'L05_H07', level_id: 5, sort_order: 14, db: 'hr', difficulty: 'medium',
+    title: 'Departments with average salary above 80k',
+    prompt: "For each department (current employees only), show `dept_no` and `avg_salary`. Keep only departments where the average current salary is above 80000. Use HAVING.",
+    hint: "Join dept_emp and salaries (to_date = '2099-01-01'), GROUP BY dept_no, HAVING AVG(salary) > 80000",
+    canonical_sql: "SELECT de.dept_no, AVG(s.salary) AS avg_salary FROM dept_emp de JOIN salaries s ON de.emp_no = s.emp_no WHERE de.to_date = '2099-01-01' AND s.to_date = '2099-01-01' GROUP BY de.dept_no HAVING AVG(s.salary) > 80000",
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'HAVING filters groups', body: 'WHERE cannot filter on AVG — use HAVING after GROUP BY.' },
+      { step: 2, title: 'Full query', body: "SELECT de.dept_no, AVG(s.salary) AS avg_salary FROM dept_emp de JOIN salaries s ON de.emp_no = s.emp_no WHERE de.to_date = '2099-01-01' AND s.to_date = '2099-01-01' GROUP BY de.dept_no HAVING AVG(s.salary) > 80000" },
+    ],
+  },
+
+  {
+    id: 'L06_R07', level_id: 6, sort_order: 13, db: 'retail', difficulty: 'medium',
+    title: 'Categories with their product count',
+    prompt: 'List each category `name` and how many products belong to it. Return `category_name` and `product_count`. Sort by product_count descending.',
+    hint: 'JOIN categories to products ON category_id, GROUP BY name, COUNT(*).',
+    canonical_sql: 'SELECT c.name AS category_name, COUNT(*) AS product_count FROM categories c JOIN products p ON c.category_id = p.category_id GROUP BY c.category_id, c.name ORDER BY product_count DESC',
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'INNER JOIN links categories to products', body: 'Every product has a category_id — join on that key.' },
+      { step: 2, title: 'GROUP BY category', body: 'COUNT(*) counts products per category group.' },
+      { step: 3, title: 'Full query', body: 'SELECT c.name AS category_name, COUNT(*) AS product_count FROM categories c JOIN products p ON c.category_id = p.category_id GROUP BY c.category_id, c.name ORDER BY product_count DESC' },
+    ],
+  },
+  {
+    id: 'L06_H07', level_id: 6, sort_order: 14, db: 'hr', difficulty: 'medium',
+    title: 'Employees with department name',
+    prompt: "List current employees' `emp_no`, `first_name`, `last_name`, and `dept_name`. Join `employees`, `dept_emp`, and `departments`. Limit 20.",
+    hint: "Three-table join; filter dept_emp.to_date = '2099-01-01'.",
+    canonical_sql: "SELECT e.emp_no, e.first_name, e.last_name, d.dept_name FROM employees e JOIN dept_emp de ON e.emp_no = de.emp_no JOIN departments d ON de.dept_no = d.dept_no WHERE de.to_date = '2099-01-01' LIMIT 20",
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'Chain: employees → dept_emp → departments', body: 'emp_no links the first two; dept_no links the last two.' },
+      { step: 2, title: 'Full query', body: "SELECT e.emp_no, e.first_name, e.last_name, d.dept_name FROM employees e JOIN dept_emp de ON e.emp_no = de.emp_no JOIN departments d ON de.dept_no = d.dept_no WHERE de.to_date = '2099-01-01' LIMIT 20" },
+    ],
+  },
+
+  {
+    id: 'L07_R07', level_id: 7, sort_order: 13, db: 'retail', difficulty: 'medium',
+    title: 'Products priced above the average',
+    prompt: 'Find products whose `list_price` is greater than the average `list_price` of all products. Return `sku` and `list_price`.',
+    hint: 'Scalar subquery: WHERE list_price > (SELECT AVG(list_price) FROM products)',
+    canonical_sql: 'SELECT sku, list_price FROM products WHERE list_price > (SELECT AVG(list_price) FROM products)',
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'Scalar subquery returns one value', body: 'SELECT AVG(list_price) FROM products computes a single number to compare against.' },
+      { step: 2, title: 'Full query', body: 'SELECT sku, list_price FROM products WHERE list_price > (SELECT AVG(list_price) FROM products)' },
+    ],
+  },
+  {
+    id: 'L07_H07', level_id: 7, sort_order: 14, db: 'hr', difficulty: 'medium',
+    title: 'Employees with a salary over 120k (EXISTS)',
+    prompt: 'Find employees who have at least one salary record above 120000. Use `EXISTS`. Return `emp_no`, `first_name`, and `last_name`. Limit 10.',
+    hint: 'WHERE EXISTS (SELECT 1 FROM salaries s WHERE s.emp_no = e.emp_no AND s.salary > 120000)',
+    canonical_sql: 'SELECT e.emp_no, e.first_name, e.last_name FROM employees e WHERE EXISTS (SELECT 1 FROM salaries s WHERE s.emp_no = e.emp_no AND s.salary > 120000) LIMIT 10',
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'EXISTS checks for any matching row', body: 'The subquery returns rows if the employee ever earned over 120k.' },
+      { step: 2, title: 'Full query', body: 'SELECT e.emp_no, e.first_name, e.last_name FROM employees e WHERE EXISTS (SELECT 1 FROM salaries s WHERE s.emp_no = e.emp_no AND s.salary > 120000) LIMIT 10' },
+    ],
+  },
+
+  {
+    id: 'L08_R07', level_id: 8, sort_order: 13, db: 'retail', difficulty: 'medium',
+    title: 'High-value orders via CTE',
+    prompt: 'Use a CTE named `order_totals` to compute total revenue per `order_id` (sum of `qty * paid_price`). Then return orders where total revenue exceeds 50. Show `order_id` and `total_revenue`.',
+    hint: 'WITH order_totals AS (SELECT order_id, SUM(...) AS total_revenue FROM order_items GROUP BY order_id) SELECT ... WHERE total_revenue > 50',
+    canonical_sql: 'WITH order_totals AS (SELECT order_id, SUM(qty * paid_price) AS total_revenue FROM order_items GROUP BY order_id) SELECT order_id, total_revenue FROM order_totals WHERE total_revenue > 50 ORDER BY total_revenue DESC',
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'CTE aggregates first', body: 'WITH order_totals AS (...) names the intermediate result.' },
+      { step: 2, title: 'Main query filters the CTE', body: 'SELECT from order_totals WHERE total_revenue > 50.' },
+      { step: 3, title: 'Full query', body: 'WITH order_totals AS (SELECT order_id, SUM(qty * paid_price) AS total_revenue FROM order_items GROUP BY order_id) SELECT order_id, total_revenue FROM order_totals WHERE total_revenue > 50 ORDER BY total_revenue DESC' },
+    ],
+  },
+  {
+    id: 'L08_H07', level_id: 8, sort_order: 14, db: 'hr', difficulty: 'medium',
+    title: 'Department headcount above average (CTE)',
+    prompt: "Use a CTE to count current employees per department, then return only departments with more employees than the overall average. Show `dept_no` and `emp_count`.",
+    hint: 'CTE with GROUP BY dept_no; main query compares emp_count to (SELECT AVG(emp_count) FROM cte).',
+    canonical_sql: "WITH dept_counts AS (SELECT dept_no, COUNT(*) AS emp_count FROM dept_emp WHERE to_date = '2099-01-01' GROUP BY dept_no) SELECT dept_no, emp_count FROM dept_counts WHERE emp_count > (SELECT AVG(emp_count) FROM dept_counts)",
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'CTE1: count per department', body: "WITH dept_counts AS (SELECT dept_no, COUNT(*) AS emp_count FROM dept_emp WHERE to_date = '2099-01-01' GROUP BY dept_no)" },
+      { step: 2, title: 'Filter with scalar subquery on the CTE', body: 'Compare emp_count to AVG(emp_count) from the same CTE.' },
+      { step: 3, title: 'Full query', body: "WITH dept_counts AS (SELECT dept_no, COUNT(*) AS emp_count FROM dept_emp WHERE to_date = '2099-01-01' GROUP BY dept_no) SELECT dept_no, emp_count FROM dept_counts WHERE emp_count > (SELECT AVG(emp_count) FROM dept_counts)" },
+    ],
+  },
+
+  {
+    id: 'L09_R07', level_id: 9, sort_order: 13, db: 'retail', difficulty: 'medium',
+    title: 'Dense rank of product prices',
+    prompt: 'Use `DENSE_RANK()` to rank products by `list_price` descending (ties share a rank with no gaps). Return `sku`, `list_price`, and `dense_rank`. Limit 15.',
+    hint: 'DENSE_RANK() OVER (ORDER BY list_price DESC) AS dense_rank',
+    canonical_sql: 'SELECT sku, list_price, DENSE_RANK() OVER (ORDER BY list_price DESC) AS dense_rank FROM products ORDER BY dense_rank, list_price DESC LIMIT 15',
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'DENSE_RANK vs RANK', body: 'Unlike RANK, DENSE_RANK does not skip numbers after ties — 1,1,2,3 not 1,1,3,4.' },
+      { step: 2, title: 'Full query', body: 'SELECT sku, list_price, DENSE_RANK() OVER (ORDER BY list_price DESC) AS dense_rank FROM products ORDER BY dense_rank, list_price DESC LIMIT 15' },
+    ],
+  },
+  {
+    id: 'L09_H07', level_id: 9, sort_order: 14, db: 'hr', difficulty: 'hard',
+    title: 'Next salary record with LEAD',
+    prompt: "For employee 101, show each salary row with the next salary amount using `LEAD`. Return `emp_no`, `salary`, `from_date`, and `next_salary`.",
+    hint: 'LEAD(salary) OVER (PARTITION BY emp_no ORDER BY from_date)',
+    canonical_sql: 'SELECT emp_no, salary, from_date, LEAD(salary) OVER (PARTITION BY emp_no ORDER BY from_date) AS next_salary FROM salaries WHERE emp_no = 101 ORDER BY from_date',
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'LEAD looks ahead one row', body: 'LEAD(salary) returns the salary from the next chronological record.' },
+      { step: 2, title: 'Full query', body: 'SELECT emp_no, salary, from_date, LEAD(salary) OVER (PARTITION BY emp_no ORDER BY from_date) AS next_salary FROM salaries WHERE emp_no = 101 ORDER BY from_date' },
+    ],
+  },
+
+  {
+    id: 'L10_R07', level_id: 10, sort_order: 13, db: 'retail', difficulty: 'medium',
+    title: 'Label order size with CASE',
+    prompt: "For each order, compute total line-item revenue and label it `'Large'` if revenue >= 40, otherwise `'Small'`. Return `order_id`, `total_revenue`, and `size_label`. Limit 20.",
+    hint: 'GROUP BY order_id, SUM(qty * paid_price), CASE WHEN SUM(...) >= 40 THEN ...',
+    canonical_sql: "SELECT o.order_id, SUM(oi.qty * oi.paid_price) AS total_revenue, CASE WHEN SUM(oi.qty * oi.paid_price) >= 40 THEN 'Large' ELSE 'Small' END AS size_label FROM orders o JOIN order_items oi ON o.order_id = oi.order_id GROUP BY o.order_id LIMIT 20",
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'Aggregate revenue per order', body: 'JOIN orders to order_items and GROUP BY order_id.' },
+      { step: 2, title: 'CASE WHEN on the aggregate', body: "CASE WHEN SUM(...) >= 40 THEN 'Large' ELSE 'Small' END labels each group." },
+      { step: 3, title: 'Full query', body: "SELECT o.order_id, SUM(oi.qty * oi.paid_price) AS total_revenue, CASE WHEN SUM(oi.qty * oi.paid_price) >= 40 THEN 'Large' ELSE 'Small' END AS size_label FROM orders o JOIN order_items oi ON o.order_id = oi.order_id GROUP BY o.order_id LIMIT 20" },
+    ],
+  },
+  {
+    id: 'L10_H07', level_id: 10, sort_order: 14, db: 'hr', difficulty: 'medium',
+    title: 'Salary band labels with CASE',
+    prompt: "Label each current employee's salary: `'Executive'` if >= 150000, `'Senior'` if >= 90000, else `'Standard'`. Return `emp_no`, `salary`, and `band`. Limit 15.",
+    hint: "CASE WHEN salary >= 150000 THEN 'Executive' WHEN salary >= 90000 THEN 'Senior' ELSE 'Standard' END",
+    canonical_sql: "SELECT emp_no, salary, CASE WHEN salary >= 150000 THEN 'Executive' WHEN salary >= 90000 THEN 'Senior' ELSE 'Standard' END AS band FROM salaries WHERE to_date = '2099-01-01' ORDER BY salary DESC LIMIT 15",
+    starter_sql: null,
+    build_concept: [
+      { step: 1, title: 'Order CASE conditions from highest to lowest', body: 'The first matching WHEN wins — check Executive before Senior.' },
+      { step: 2, title: 'Full query', body: "SELECT emp_no, salary, CASE WHEN salary >= 150000 THEN 'Executive' WHEN salary >= 90000 THEN 'Senior' ELSE 'Standard' END AS band FROM salaries WHERE to_date = '2099-01-01' ORDER BY salary DESC LIMIT 15" },
     ],
   },
 ];
